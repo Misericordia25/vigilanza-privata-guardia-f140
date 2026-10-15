@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="it"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#3a3f45">
+<title>Vigilanza Privata</title>
+<link rel="manifest" href="manifest.json"><link rel="icon" type="image/png" href="favicon-64.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+/* Palette cliente: grigio antracite + rosso */
+:root{--r:#c8102e;--g:#3a3f45;--bg:#eceef1;--card:#fff;--tx:#1d2125;--mu:#646b74;--ln:#d5d9de;--ok:#1d7f46}
+[data-theme=dark]{--bg:#15171a;--card:#212429;--tx:#e7e9ec;--mu:#9aa1a9;--ln:#363b42;--g:#2a2e33}
+*{box-sizing:border-box}html,body{margin:0}
+body{font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+:focus-visible{outline:2px solid var(--r);outline-offset:2px}
+header{position:sticky;top:0;z-index:5;background:var(--g);color:#fff;display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 10px 8px;border-bottom:4px solid var(--r)}
+header img{width:34px;height:34px;object-fit:contain;border-radius:7px;background:#fff;padding:2px}
+header h1{font-size:15px;margin:0;flex:1;line-height:1.15;min-width:0}header h1 span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header small{display:block;font-weight:400;opacity:.75;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hb{background:none;border:1px solid #ffffff4d;color:#fff;border-radius:8px;padding:3px 6px;font-size:10px;line-height:1.15;cursor:pointer;display:flex;flex-direction:column;align-items:center;min-width:42px}.hb b{font-size:16px;font-weight:400}
+#dot{width:11px;height:11px;border-radius:50%;background:#8a8f96;flex:none;cursor:pointer;border:2px solid #fff3}
+main{padding:12px;max-width:760px;margin:auto}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--ln);padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav button{flex:1;background:none;border:0;padding:15px 2px 13px;color:var(--mu);font:inherit;font-size:12.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer}
+nav button b{font-size:25px;font-weight:400}nav button.on{color:var(--r);box-shadow:inset 0 3px var(--r)}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:12px;margin-bottom:10px}
+.btn{background:var(--r);color:#fff;border:0;border-radius:10px;padding:11px 14px;font:inherit;font-weight:600;cursor:pointer}
+.btn:active{transform:scale(.98)}.btn.sec{background:transparent;color:var(--tx);border:1px solid var(--ln)}
+.btn.ok{background:var(--ok)}.btn.sm{padding:6px 10px;font-size:13px}.btn.w{width:100%;margin-top:8px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.btns .btn{flex:1}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:10px}.row>input{flex:1;margin:0}
+label{display:block;font-size:12.5px;color:var(--mu);margin:8px 0 0}
+details.pub summary{cursor:pointer;font-weight:600;font-size:13.5px;color:var(--r);list-style:none;padding:4px 0}details.pub summary::-webkit-details-marker{display:none}details.pub summary::after{content:' ▾';color:var(--mu)}details.pub[open] summary::after{content:' ▴'}
+input[type=range]{width:100%;padding:0;background:none;border:0;accent-color:var(--r);margin:6px 0 2px}
+input,select,textarea{width:100%;font:inherit;font-size:16px;color:var(--tx);background:var(--bg);border:1px solid var(--ln);border-radius:9px;padding:10px;margin-top:3px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:0 8px}
+.mic{display:flex;gap:6px;align-items:flex-start}.mic textarea{flex:1}.mic .btn{margin-top:3px}
+.bin{display:flex;gap:12px;align-items:center;width:100%;text-align:left;margin-top:8px;padding:12px;border-radius:12px;border:2px solid;background:var(--card);color:var(--tx);font:inherit;cursor:pointer}.bin b{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:22px;flex:0 0 auto}.bin.y{border-color:#e0a800}.bin.y b{background:#ffd34d}.bin.r{border-color:#c8102e}.bin.r b{background:#c8102e}.bin:active{filter:brightness(.8)}details.arc{margin-bottom:8px}details.arc>summary{cursor:pointer;font-weight:700;padding:8px 2px}
+.ct{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.ct>*:first-child{min-width:0;flex:1;overflow-wrap:anywhere;word-break:break-word}.ct>*:last-child{flex:0 0 auto;max-width:48%}html{-webkit-text-size-adjust:100%}.li>:first-child{min-width:0;overflow-wrap:anywhere}
+.mu{color:var(--mu)}.sm{font-size:12.5px}p{margin:6px 0}
+.badge{display:inline-block;font-size:12px;padding:3px 9px;border-radius:20px;background:var(--bg);border:1px solid var(--ln);white-space:nowrap}
+.badge.ok{background:#1d7f461f;color:var(--ok);border-color:#1d7f4659}.badge.r{background:#c8102e17;color:var(--r);border-color:#c8102e55}
+.seg{display:flex;background:var(--card);border:1px solid var(--ln);border-radius:10px;overflow:hidden;flex:1}
+.seg button{flex:1;border:0;background:none;padding:9px 4px;color:var(--mu);font:inherit;font-size:13px;cursor:pointer}.seg button.on{background:var(--g);color:#fff}
+#modal{position:fixed;inset:0;background:#000a;display:none;align-items:flex-end;justify-content:center;z-index:20}
+#modal.on{display:flex}
+.mbox{background:var(--card);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));border-top:4px solid var(--r)}
+@media(min-width:600px){#modal{align-items:center}.mbox{border-radius:14px}}
+h3{margin:0 0 6px}h4{margin:14px 0 6px;font-size:14px;color:var(--r)}.card h4:first-child{margin-top:0}
+.li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--ln)}
+.sig{width:100%;height:190px;background:#fff;border:2px dashed var(--ln);border-radius:10px;touch-action:none;margin-top:8px;display:block}
+.fthumb{height:42px;background:#fff;border-radius:4px;margin-top:4px;display:block}
+#toast{position:fixed;left:50%;bottom:calc(112px + env(safe-area-inset-bottom));transform:translate(-50%,16px);background:#24282d;color:#fff;padding:10px 14px;border-radius:10px;opacity:0;transition:.25s;z-index:50;max-width:92%;font-size:14px;pointer-events:none}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px;margin:10px 0}
+.kpi div{background:var(--card);border:1px solid var(--ln);border-left:4px solid var(--r);border-radius:10px;padding:8px 10px}.kpi b{display:block;font-size:22px}.kpi span{font-size:11.5px;color:var(--mu)}
+canvas.ch{width:100%;height:220px;display:block}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:7px 6px;border-bottom:1px solid var(--ln);text-align:left;white-space:nowrap}th{color:var(--mu);font-weight:600}tr.bad td{color:var(--r);font-weight:600}
+.auth{max-width:420px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top)) 16px}
+.auth .brand{text-align:center;margin-bottom:16px}.auth .brand img{width:86px;height:86px;object-fit:contain}
+#vo{position:fixed;left:12px;right:12px;bottom:calc(112px + env(safe-area-inset-bottom));background:var(--g);color:#fff;border-radius:14px;padding:14px;z-index:40;display:flex;gap:10px;align-items:center;box-shadow:0 6px 24px #0006}
+#nav button.rd{color:#fff;background:var(--r);animation:rd 1.6s infinite}@keyframes rd{50%{opacity:.7}}@media(prefers-reduced-motion:reduce){#nav button.rd{animation:none}}
+#vo .pulse{width:14px;height:14px;border-radius:50%;background:var(--r);animation:p 1s infinite}@keyframes p{50%{opacity:.3}}
+@media(prefers-reduced-motion:reduce){#vo .pulse{animation:none}#toast{transition:none}}
+.tile{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:14px;margin-bottom:8px;cursor:pointer}.tile>b{font-size:22px;width:30px;text-align:center}
+.info p,.info li{font-size:14px}.info ul{padding-left:18px}
+#bc{font-style:normal;background:var(--r);border-radius:10px;padding:0 5px;font-size:11px;margin-left:2px}#bc:empty{display:none}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--tx);margin:8px 0}.chk input{width:auto;margin:0}
+.leg{display:flex;gap:14px;font-size:12px;color:var(--mu);margin-top:4px}.leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
+a{color:var(--r)}
+/* feedback al tocco: ogni pulsante cambia colore alla pressione */
+.btn,.hb,nav button,.tile,.seg button{transition:background-color .1s,filter .1s,transform .1s,color .1s}
+.btn:active,.btn.prs{filter:brightness(.7);transform:scale(.96)}.btn.sec:active,.btn.sec.prs{background:var(--ln);filter:none}
+.hb:active,.hb.prs{background:#ffffff4d}nav button:active,nav button.prs{background:#c8102e29;color:var(--r)}
+.tile:active,.tile.prs{background:var(--ln)}.seg button:active,.seg button.prs{background:var(--r);color:#fff}
+.ic{display:inline-block;margin-right:5px}.mic .btn{white-space:nowrap}a.btn{display:block;text-align:center;text-decoration:none}
+.chat{max-height:46vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:4px 0}.msg{max-width:84%;padding:7px 10px;border-radius:12px;background:var(--bg);border:1px solid var(--ln);font-size:14px}
+.msg.me{align-self:flex-end;background:#c8102e17;border-color:#c8102e55}.msg small{display:block;color:var(--mu);font-size:11px}
+.bar{height:10px;background:var(--bg);border:1px solid var(--ln);border-radius:8px;overflow:hidden}.bar i{display:block;height:100%}
+#bgl{position:fixed;inset:0;z-index:4;pointer-events:none;background:center/min(70vw,70vh) no-repeat;opacity:.09}
+#gd{position:fixed;left:8px;right:8px;top:calc(64px + env(safe-area-inset-top));z-index:30;background:var(--g);color:#fff;border-radius:12px;padding:10px 12px;display:none;gap:10px;align-items:center;box-shadow:0 6px 24px #0006;font-size:14px;max-width:560px;margin:auto}
+#gd.on{display:flex}#gd span{flex:1}#gd .btn{background:#fff;color:#1d2125;white-space:nowrap}
+.fgrande{width:100%;max-width:300px;background:#fff;border:1px solid var(--ln);border-radius:6px;display:block;margin-top:6px}
+</style></head>
+<body>
+<div id="bgl"></div><div id="gd" role="status" aria-live="polite"><span id="gT"></span><button class="btn sm" onclick="salta()">Salta guida ⏭</button></div>
+<div id="auth"></div>
+<div id="shell" hidden>
+<header><img id="hLogo" alt="Logo"><h1><span id="hAz">Vigilanza Privata</span><small id="hUser"></small></h1>
+<span id="dot" onclick="toast(this.title)" title=""></span>
+<button class="hb" id="hVoce" onclick="setVoce(!voceOn())" aria-label="Voce guida"><b id="hVi">🔊</b>Voce</button>
+<button class="hb" onclick="go('promemoria')" aria-label="Avvisi"><b>🔔</b>Avvisi<i id="bc"></i></button>
+<button class="hb" onclick="info()" aria-label="Informazioni"><b>ⓘ</b>Info</button>
+<button class="hb" onclick="logout()"><b>⏻</b>Esci</button></header>
+<main id="main"></main><nav id="nav"></nav></div>
+<div id="modal"></div><div id="toast"></div>
+<script>
+/* ============ COSTANTI E STATO ============ */
+const VER='1.4.0',RET=180,API='/.netlify/functions/sync'; // RET = giorni di conservazione di firme e posizioni GPS
+const COLS=['utenti','servizi','risposte','presenze','promemoria','log','impostazioni','chat','richieste','gps','posizioni','equipaggio'];
+const RUOLI={admin:'Amministratore',tecnico:'Tecnico (volontario)',lettura:'Sola lettura',cliente:'Cliente (richiedente degli eventi)'};
+const RISERV={volontari:'Gestione volontari',export:'Esportazioni Excel e CSV',storico:'Storico azioni',backup:'Backup e ripristino',sicurezza:'Dati azienda e sicurezza'};
+const LOGO='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M32 4 8 13v17c0 15 10 26 24 30 14-4 24-15 24-30V13z" fill="#3a3f45"/><path d="M32 10 14 17v13c0 11 7 20 18 24 11-4 18-13 18-24V17z" fill="#c8102e"/><path d="m22 32 7 7 14-15" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS={g:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},s:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{toast('Memoria del dispositivo piena: esporta un backup')}}};
+let DB=LS.g('vp_db',{});COLS.forEach(c=>DB[c]??={});
+let Q=LS.g('vp_queue',[]),CREDS=LS.g('vp_creds',{}),SES=LS.g('vp_session',null),SEQ=LS.g('vp_seq',0);
+const S={view:'servizi',online:null,syncing:false,pinOk:false,lastAct:Date.now(),idle:0,period:90,alerts:[]};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const me=()=>SES&&DB.utenti[SES.uid],role=()=>me()?.ruolo||'lettura';
+const cfg=()=>DB.impostazioni.cfg||{id:'cfg',azienda:'Agenzia Vigilanza Privata',riservate:[],timeout:5};
+const live=c=>Object.values(DB[c]).filter(r=>!r.deleted&&!(c==='presenze'&&r.escluso));
+const nomeU=id=>{const u=DB.utenti[id];return u?u.nome+' '+u.cognome:'Utente'};
+const saveDB=()=>LS.s('vp_db',DB);
+/* ============ DATE ============ */
+const ymd=d=>{d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const fmtD=d=>new Date(d+'T12:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
+const fmtT=t=>new Date(t).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'});
+const hm=t=>new Date(t).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+const byDate=(a,b)=>(a.data+a.oraInizio).localeCompare(b.data+b.oraInizio);
+const dur=s=>{const m=x=>{const[h,mm]=x.split(':');return h*60+ +mm};let d=m(s.oraFine)-m(s.oraInizio);if(d<=0)d+=1440;return Math.round(d/15)/4};
+const inPer=d=>S.period==='all'||new Date(d+'T12:00')>=Date.now()-S.period*864e5;
+const statoP=p=>p?.stato||(p?.checkOut?'presente':p?.checkIn?'in servizio':'');
+// Ore di volontariato complessive di un utente (tutte le presenze confermate, senza limite di periodo)
+const TRAG=30;
+const oreU=id=>Math.round(live('presenze').filter(p=>p.utenteId===id&&['presente','in servizio'].includes(statoP(p))&&DB.servizi[p.servizioId]&&!DB.servizi[p.servizioId].deleted).reduce((a,p)=>a+(+p.ore||0),0)*100)/100;
+// Stendardo di ringraziamento al raggiungimento di 30 ore; altrimenti barra di avanzamento
+function stendardo(id,mio){const o=oreU(id),n=nomeU(id);
+ if(o>=TRAG)return`<div class="card" style="background:linear-gradient(135deg,var(--g),var(--r));color:#fff;text-align:center;border:0"><div style="font-size:30px">🏅</div><b style="font-size:17px">${mio?'Grazie':'Grazie a '+esc(n)}!</b><p style="margin:4px 0">${mio?'Hai':'Ha'} raggiunto <b>${o} ore</b> di volontariato.<br>Il tuo tempo rende più sicura la nostra comunità.</p></div>`;
+ return mio?`<div class="card"><div class="ct"><b>Le mie ore di volontariato</b><span>${o} / ${TRAG} h</span></div><div style="height:8px;background:var(--bg);border-radius:6px;margin-top:8px;overflow:hidden"><div style="height:100%;width:${Math.round(o/TRAG*100)}%;background:var(--r)"></div></div><p class="mu sm">Mancano ${Math.round((TRAG-o)*100)/100} ore al traguardo di ${TRAG}: ti aspetta un ringraziamento speciale.</p></div>`:''}
+/* ============ UI BASE ============ */
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),3400)}
+function modal(h,g){if(g)parla(GMOD[g]);$('#modal').innerHTML=`<div class="mbox" role="dialog">${h}</div>`;$('#modal').classList.add('on')}
+function closeM(){S.chat=null;$('#modal').classList.remove('on');$('#modal').innerHTML=''}
+const inp=(id,l,v='',t='text',x='')=>`<label>${l}<input id="${id}" type="${t}" value="${esc(v)}" ${x}></label>`;
+const ta=(id,l,v='')=>`<label>${l}<span class="mic"><textarea id="${id}" rows="3">${esc(v)}</textarea><button type="button" class="btn sec sm" onclick="mic('${id}')" aria-label="Detta">🎤 Detta</button></span></label>`;
+const val=id=>$('#'+id).value.trim();
+const seg=(k,opts,cur)=>`<div class="seg">${opts.map(([v,l])=>`<button class="${cur==v?'on':''}" onclick="S.${k}=${typeof v==='number'?v:`'${v}'`};render()">${l}</button>`).join('')}</div>`;
+function download(n,b){const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}
+const theme=()=>LS.g('vp_theme',matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+function setTheme(t){LS.s('vp_theme',t);document.documentElement.dataset.theme=t;render()}
+/* ============ CRITTOGRAFIA (PBKDF2-SHA-256, Web Crypto) ============ */
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+const unhex=h=>new Uint8Array(h.match(/../g).map(x=>parseInt(x,16)));
+async function pbk(pass,salt){const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveBits']);return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:unhex(salt),iterations:100000,hash:'SHA-256'},k,256))}
+async function mkPw(pass){const salt=hex(crypto.getRandomValues(new Uint8Array(16)));return{salt,hash:await pbk(pass,salt)}}
+/* ============ DATI, CODA, REGISTRO ============ */
+// Salva un record in locale e lo mette in coda per il cloud (una sola voce per record)
+function put(col,rec,extra){rec.updatedAt=Date.now();rec.updatedBy=SES?.uid||'';DB[col][rec.id]=rec;saveDB();
+ const i=Q.findIndex(q=>q.col===col&&q.rec.id===rec.id),keep=i>=0&&Q[i].rec.pw&&!extra?.pw?{pw:Q[i].rec.pw}:{};
+ const it={col,rec:{...rec,...keep,...extra}};i>=0?Q[i]=it:Q.push(it);LS.s('vp_queue',Q);col==='chat'||schedSync()}
+function logA(azione,tipo='azione',esito=''){if(SES)put('log',{id:uid(),ts:Date.now(),utenteId:SES.uid,tipo,azione,esito})}
+/* ============ CLOUD E SINCRONIZZAZIONE ============ */
+async function api(body){const r=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout?.(15000)});
+ if(!(r.headers.get('content-type')||'').includes('json'))throw new Error('offline');const j=await r.json();j._st=r.status;return j}
+let syncT;function schedSync(){clearTimeout(syncT);syncT=setTimeout(sync,1500)}
+function resetLocale(){Object.keys(localStorage).filter(k=>/^vp_/.test(k)&&!/theme|voce|suono/.test(k)).forEach(k=>localStorage.removeItem(k));location.reload()}
+async function sync(manual){
+ if(S.syncing)return;if(!SES?.token){if(manual)toast('Nessuna sessione cloud: usa "Collega al cloud" o accedi con connessione');return dot()}
+ if(!navigator.onLine){S.online=false;if(manual)toast('Sei offline: i dati restano in coda');return dot()}
+ S.syncing=true;dot();const sent=Q.slice();
+ try{const r=await api({action:'sync',token:SES.token,since:SEQ,changes:sent});
+  if(r._st===401){const st=await api({action:'status'}).catch(()=>null);if(st?.setup){toast('Il cloud è stato azzerato: l\'app riparte da zero');return setTimeout(resetLocale,1800)}SES.token=null;LS.s('vp_session',SES);S.online=true;toast('Sessione cloud scaduta: esci e accedi di nuovo con connessione')}
+  else if(r.err)throw new Error(r.err);
+  else{Q=Q.filter(q=>!sent.some(s=>s.col===q.col&&s.rec.id===q.rec.id&&s.rec.updatedAt===q.rec.updatedAt));LS.s('vp_queue',Q);
+   let ch=0,nc=[],rs=0,ng=0;for(const{col,rec}of r.recs){if(!DB[col])continue;const l=DB[col][rec.id];if(col==='equipaggio'&&l&&JSON.stringify({...l,updatedAt:0})===JSON.stringify({...rec,updatedAt:0})){DB[col][rec.id]=rec;continue}if(col==='gps'&&!l&&role()==='tecnico')ng=1;if(col==='utenti'&&rec.id===SES.uid&&l&&l.ruolo!==rec.ruolo)rs=1; // cambio del proprio ruolo: serve risincronizzare tutto
+    
+    // vince l'ultima modifica; se c'è una modifica locale in coda resta quella (verrà inviata)
+    if((!l||(rec.updatedAt||0)>=(l.updatedAt||0))&&!Q.some(q=>q.col===col&&q.rec.id===rec.id)){DB[col][rec.id]=rec;ch++;if(col==='chat'&&!l&&rec.utenteId!==SES.uid&&Date.now()-rec.ts<12e4)nc.push(rec)}}
+   if(nc.length){const m=nc[nc.length-1];notify('💬 '+(m.cl!==undefined?'Chat '+(role()==='cliente'?'con il gestore':'cliente'):m.promId?DB.promemoria[m.promId]?.titolo||'Promemoria':DB.servizi[m.servizioId]?.titolo||'Chat evento'),m.nome+': '+m.testo,m.promId)}
+   if(ng){notify('📍 Verifica della posizione','Il cliente chiede la tua posizione','','gps','turno');gpsRispondi()}S.mapSid&&mappaRefresh();S.chat&&chatRefresh();if(r.usage){S.usage=r.usage;usoCheck()}
+   SEQ=rs?0:r.seq;LS.s('vp_seq',SEQ);if(rs){toast('Il tuo ruolo è cambiato: aggiorno tutti i dati');r.more=1}LS.s('vp_last',Date.now());purge();saveDB();S.online=true;if(ch)render();if(r.more)setTimeout(sync,150);if(manual)toast('Sincronizzazione completata')}
+ }catch(e){S.online=false;if(manual)toast('Server non raggiungibile: i dati restano salvati sul dispositivo')}
+ S.syncing=false;dot()}
+function dot(){const d=$('#dot');if(!d)return;const[c,t]=S.syncing?['#e0a800','Sincronizzazione in corso']:!SES?.token?['#8a8f96','Solo locale (nessuna sessione cloud)']:(!navigator.onLine||S.online===false)?['#ff4d5e','Offline: modifiche in coda']:['#2fd06e','Sincronizzato'];d.style.background=c;d.title=t+(Q.length?`. In attesa di invio: ${Q.length}`:'')}
+async function collega(){try{const st=await api({action:'status'}),c=CREDS[SES.uid];
+ if(st.setup&&c){const r=await api({action:'setup',user:{...me(),pw:{salt:c.salt,hash:c.hash}}});if(r.token){SES.token=r.token;c.token=r.token;LS.s('vp_session',SES);LS.s('vp_creds',CREDS);logA('Collegamento al cloud','sync','ok');await sync(true);return render()}}
+ toast('Il cloud ha già degli utenti: esci e accedi con le credenziali del cloud')}catch{toast('Server non raggiungibile')}}
+/* ============ SFONDO CON LOGO, VOCE GUIDA, MICROFONO ALL'ACCESSO ============ */
+// Logo del gestore in semitrasparenza, sempre sullo sfondo
+function bg(){const e=$('#bgl');if(e){e.style.backgroundImage=`url("${cfg().logo||LOGO}")`;e.style.opacity=LS.g('vp_logo',4)/100}}
+// Voce guida (sintesi vocale del dispositivo): attivabile/disattivabile, con "Salta guida"
+const TTS='speechSynthesis'in window,voceOn=()=>LS.g('vp_voce',true);let gT,gPend='';const vel=()=>LS.g('vp_vel',1);
+function parla(t){gPend='';if(!voceOn())return;$('#gT').textContent=t;LS.g('vp_ban',true)&&$('#gd').classList.add('on');clearTimeout(gT);gT=setTimeout(salta,Math.max(6e3,t.length*90/vel()));
+ if(!TTS)return;if(navigator.userActivation&&!navigator.userActivation.hasBeenActive){gPend=t;return} // il browser vuole un tocco prima di parlare
+ try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='it-IT';u.rate=vel();const v=speechSynthesis.getVoices().find(x=>/^it/i.test(x.lang));if(v)u.voice=v;u.onend=()=>{if($('#gT').textContent===t)salta()};speechSynthesis.speak(u)}catch{}}
+function salta(){clearTimeout(gT);try{TTS&&speechSynthesis.cancel()}catch{}$('#gd').classList.remove('on')}
+function setVoce(on){LS.s('vp_voce',on);if(!on)salta();toast(on?'Voce guida attivata':'Voce guida disattivata');if(on)S.gv=null;SES?render():authView(S.am||'login')}
+addEventListener('pointerdown',()=>{if(gPend&&voceOn())setTimeout(()=>parla(gPend),0)},true);
+const GUIDA={
+ servizi:r=>r==='cliente'?'Sei nella schermata Eventi. Vedi i tuoi eventi, i volontari in servizio dal check-in con il tasto Chiama, la verifica della presenza con il GPS e la chat con i volontari. Con Richiedi un nuovo evento scrivi al gestore.':r==='admin'?'Sei nella schermata Servizi. Con il pulsante Nuovo crei una richiesta di servizio. Su ogni servizio, Dettaglio volontari ti mostra chi ha dato disponibilità, le firme e le posizioni.':r==='tecnico'?'Sei nella schermata Servizi. Per ogni richiesta tocca Disponibile oppure Non disponibile. Puoi anche rispondere a voce, toccando il microfono.':'Sei nella schermata Servizi. Qui puoi consultare le richieste di servizio e le risposte dei volontari.',
+ richieste:r=>r==='admin'?'Sei nelle Richieste dei clienti. Approva una richiesta per creare il servizio già assegnato al cliente, oppure rifiutala scrivendo il motivo. In fondo trovi le chat con i clienti.':'Sei nelle tue Richieste. Con Richiedi un nuovo evento scrivi al gestore data, luogo e orari; qui vedi se è stata approvata.',
+ turno:()=>'Sei nella schermata Turno. Nel giorno del servizio tocca Check-in quando inizi, e Check-out e firma quando finisci. Sotto trovi il tuo storico e le tue ore di volontariato.',
+ stats:r=>r==='tecnico'?'Sei nelle Statistiche. Qui vedi le tue ore di volontariato e un grafico mese per mese.':'Sei nelle Statistiche. Scegli il periodo in alto per vedere presenze, ore e assenze. In fondo puoi esportare in Excel o in PDF con firme e posizioni.',
+ volontari:()=>'Sei nella schermata Volontari. Cerca una persona, tocca Modifica per cambiare dati, ruolo o password, oppure usa Nuovo per aggiungerne una. Vedi anche le ore di volontariato di ciascuno.',
+ altro:()=>'Sei nel menu Altro. Scegli Promemoria, Storico azioni, Impostazioni oppure Informazioni.',
+ promemoria:()=>'Sei in Promemoria e scadenze. Qui trovi gli avvisi delle prossime ventiquattro ore e le scadenze.',
+ storico:()=>'Sei nello Storico azioni. Filtra per data e tipo, oppure esporta il file CSV.',
+ impostazioni:r=>r==='admin'?'Sei nelle Impostazioni. Puoi cambiare nome azienda e logo, il PIN delle funzioni riservate, il tema e la voce guida, e fare il backup dei dati.':'Sei nelle Impostazioni. Puoi cambiare la password, il tema e la voce guida.'};
+const GMOD={ind:'Scrivi via, numero civico, CAP e città di casa, poi tocca Salva.',firma:'Firma con il dito nello spazio bianco, poi tocca Conferma. Con Cancella puoi rifare la firma.',serv:'Compila evento, luogo, data e orario, poi tocca Salva.',utente:'Compila i dati della persona, scegli il ruolo e imposta una password, poi tocca Salva.',fp:'Qui vedi firme e posizioni di ogni volontario. Tocca Scarica PDF per ottenere il documento.',chat:'Chat dell\'evento. Scrivi un messaggio e tocca Invia. I messaggi si aggiornano al massimo ogni trenta secondi.'};
+function guidaVista(){if(S.gv===S.view)return;S.gv=S.view;const g=GUIDA[S.view];g&&parla(g(role()))}
+async function chiediMic(){const md=navigator.mediaDevices;if(!md?.getUserMedia)return'non supportato';
+ return Promise.race([md.getUserMedia({audio:true}).then(s=>{s.getTracks().forEach(t=>t.stop());return'concesso'}).catch(e=>/NotAllowed|Permission|Security/i.test(e.name)?'negato':'errore'),new Promise(r=>setTimeout(()=>r('nessuna risposta'),25000))])}
+async function micAccesso(){const e=await chiediMic();logA('Accesso microfono (all\'accesso)','permesso',e);if(e==='negato')toast('Microfono negato: dettatura e risposte a voce non funzioneranno. Puoi abilitarlo dalle impostazioni del browser');return e}
+/* ============ PULSANTI: icona + testo e feedback al tocco ============ */
+let AC;
+const IC=[[/^(Annulla|Chiudi|Stop|Ho capito)/,'✖'],[/^Salva/,'💾'],[/^(Elimina|Rimuovi)/,'🗑'],[/^(Conferma|Sblocca|Accedi|Crea account)/,'✔'],[/^Cancella/,'↺'],[/^Indietro/,'←'],[/^Modifica/,'✏️'],[/^Presenza/,'📝'],[/^Prossimi/,'📅'],[/^Passati/,'🕘'],[/^(30 giorni|90 giorni|1 anno|Tutto)/,'⏳'],[/^Invia/,'➤'],[/^Cambia/,'🔑'],[/^Importa/,'📥'],[/^Esporta/,'📤'],[/^Sincronizza/,'🔄'],[/^Collega/,'☁️'],[/^Salta/,'⏭'],[/^Scarica/,'⬇']],HAS=/^[×+←-⯿\u{1F000}-\u{1FAFF}]/u;
+function iconify(){document.querySelectorAll('button:not([data-ic])').forEach(b=>{b.dataset.ic=1;if(b.querySelector('b,.ic'))return;const t=b.textContent.trim();if(!t||HAS.test(t))return;const m=IC.find(([x])=>x.test(t));b.insertAdjacentHTML('afterbegin',`<span class="ic">${m?m[1]:'▸'}</span>`)})}
+new MutationObserver(()=>{clearTimeout(iconify.t);iconify.t=setTimeout(iconify,30)}).observe(document.body,{childList:true,subtree:true});
+addEventListener('pointerdown',e=>{const b=e.target.closest?.('button,.tile');if(b){b.classList.add('prs');setTimeout(()=>b.classList.remove('prs'),280)}
+ if(!AC)try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch{}if(AC?.state==='suspended')AC.resume()},true);
+/* ============ SUONO E VIBRAZIONE ALLE NOTIFICHE ============ */
+const suonoOn=()=>LS.g('vp_suono',true);
+function avviso(){if(!suonoOn())return;
+ try{if(AC&&AC.state==='running'){const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;o.connect(g);g.connect(AC.destination);o.frequency.setValueAtTime(880,t);o.frequency.setValueAtTime(660,t+.2);g.gain.setValueAtTime(.2,t);g.gain.exponentialRampToValueAtTime(.001,t+.5);o.start();o.stop(t+.5)}}catch{}
+ try{navigator.vibrate?.([250,120,250])}catch{}}
+/* ============ INDIRIZZI, DISTANZA STIMATA E NAVIGAZIONE (nessuna chiave API) ============ */
+const indir=o=>[((o.via||'')+' '+(o.civico||'')).trim(),o.cap,o.citta].filter(Boolean).join(', ');
+// Ricerca indirizzo con OpenStreetMap Nominatim (gratuita, senza chiave); in caso di errore si prosegue senza coordinate
+async function geo(q){try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&countrycodes=it&q='+encodeURIComponent(q),{headers:{'Accept-Language':'it'},signal:AbortSignal.timeout?.(8000)}),j=await r.json();if(SES)logA('Ricerca indirizzo: '+q.slice(0,60),'azione',j[0]?'ok':'non trovato');const a=j[0]?.address||{};return j[0]?{lat:+(+j[0].lat).toFixed(6),lng:+(+j[0].lon).toFixed(6),comune:a.city||a.town||a.village||a.municipality||a.hamlet||''}:null}catch{return null}}
+// Posizione della sede dal GPS del gestore (alternativa alla ricerca dell'indirizzo)
+function sedeGps(){(SES?gps():new Promise(res=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>{S.gpsLog='concesso';res({lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6)})},e=>{S.gpsLog=e.code===1?'negato':'errore';res({})},{enableHighAccuracy:true,timeout:15000}):res({}))).then(p=>{
+ if(p?.lat==null)return toast('Posizione non disponibile: scrivi l\'indirizzo della sede');S.sedeGps={lat:p.lat,lng:p.lng};toast(`Posizione della sede acquisita (${p.lat}, ${p.lng})`);const g=$('#aSg');if(g)g.textContent=`Posizione acquisita: ${p.lat}, ${p.lng}`})}
+const hav=(a,b,c,d)=>{const R=6371,r=x=>x*Math.PI/180,h=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
+function distanza(sid){const u=me(),s=DB.servizi[sid];if(u.homeLat==null){toast('Indirizzo di casa mancante o non verificato: completalo');return editInd()}
+ const pt=[['Sede di ritrovo',s.ritrovoLat,s.ritrovoLng],['Luogo del servizio',s.lat,s.lng]].filter(x=>x[1]!=null);if(!pt.length)return toast('Il gestore non ha ancora indicato le coordinate del luogo');
+ modal(`<h3>📏 Distanza da casa</h3><p class="mu sm">Stima in linea d'aria con correzione stradale (+30%) e velocità media di 40 km/h. Non usa mappe né chiavi API.</p>`+pt.map(([n,la,lo])=>{const k=Math.round(hav(u.homeLat,u.homeLng,la,lo)*13)/10;return`<div class="li"><b>${n}</b><span>circa ${k.toLocaleString('it-IT')} km, ${Math.max(1,Math.round(k*1.5))} min</span></div>`}).join('')+`<div class="btns"><button class="btn" onclick="closeM()">Chiudi</button></div>`)}
+const IOS=/iP(hone|ad|od)/.test(navigator.userAgent);
+function navVai(sid,tipo){const s=DB.servizi[sid],r=tipo==='ritrovo',la=r?s.ritrovoLat:s.lat,lo=r?s.ritrovoLng:s.lng,q=la!=null?`${la},${lo}`:encodeURIComponent(r?s.ritrovo||'':s.luogo||'');
+ if(!q)return toast('Indirizzo non disponibile');logA('Navigazione verso '+(r?'sede di ritrovo':'luogo del servizio')+': '+s.titolo);
+ open(IOS?`https://maps.apple.com/?daddr=${q}`:`https://www.google.com/maps/dir/?api=1&destination=${q}`,'_blank')}
+function azioniAv(sid){const s=DB.servizi[sid],ok=role()==='admin'||DB.risposte[sid+'_'+SES.uid]?.esito==='si';
+ return`<div class="btns"><button class="btn sec sm" onclick="distanza('${sid}')">📏 Distanza da casa</button>${ok?`${s.ritrovo?`<button class="btn sec sm" onclick="navVai('${sid}','ritrovo')">🧭 Sede di Ritrovo</button>`:''}<button class="btn sec sm" onclick="navVai('${sid}','luogo')">🧭 Luogo del Servizio</button>`:''}${canChat(s)?`<button class="btn sec sm" onclick="openChat('${sid}')">💬 Chat evento</button>`:''}</div>`}
+const ritrDef=()=>{const d=cfg().sede;return d?'Sede associativa, '+indir(d):''};
+/* ============ CHAT DELL'EVENTO (aggiornamento al massimo ogni 30 s; si azzera 48 h dopo la fine) ============ */
+const chatOn=()=>cfg().chat!==false;
+const LCK='🔒 Servizio chiuso: non è più modificabile',bloccato=s=>!!s&&!s.deleted&&Date.now()>fineS(s)+6*36e5;
+const fineS=s=>{const t=new Date(s.data+'T'+(s.oraFine||'23:59')).getTime();return s.oraFine<s.oraInizio?t+864e5:t},chatVivo=s=>Date.now()<fineS(s)+48*36e5;
+function canChat(s){const r=role();if(r==='cliente')return chatOn()&&!!s&&s.clienteId===SES.uid&&!s.deleted&&EQ(s.id).crew.length>0&&Date.now()<fineS(s)+6*36e5;const x=s&&DB.risposte[s.id+'_'+SES.uid];return chatOn()&&r!=='lettura'&&s&&!s.deleted&&chatVivo(s)&&(r==='admin'||(x&&!x.deleted&&x.esito==='si'))}
+const BCH='La chat si aggiorna al massimo ogni 30 secondi (non è in tempo reale). Se ne consiglia l\'uso solo con un server proprietario o con un piano abbondante, per non consumare i crediti gratuiti.';
+function bannerChat(ms){const e=$('#cbn');if(!e)return;e.hidden=false;clearTimeout(bannerChat.t);bannerChat.t=setTimeout(()=>e.hidden=true,ms)}
+function openChat(sid){const s=DB.servizi[sid];if(!canChat(s))return toast('Chat non disponibile per questo evento');S.chat={sid,sent:0};
+ modal(`<h3>💬 Chat: ${esc(s.titolo)}</h3><p class="mu sm">${fmtD(s.data)}. Partecipano il gestore e i volontari che hanno accettato. Si azzera 48 ore dopo la fine dell'evento.</p><div id="cbn" class="card" style="background:#fbeaed;border-color:#c8102e55"><span class="sm">⚠ ${BCH}</span></div><div id="cm" class="chat"></div><div class="row" style="margin:8px 0 0"><input id="cT" placeholder="Scrivi un messaggio" maxlength="500" autocomplete="off"><button class="btn" id="cS">Invia</button></div><div class="btns"><button class="btn sec" onclick="closeM()">Chiudi</button></div>`,'chat');
+ chatRefresh();$('#cm').scrollTop=1e9;bannerChat(5000);$('#cS').onclick=chatSend;$('#cT').onkeydown=e=>{if(e.key==='Enter')chatSend()}}
+function apriProm(id){if(!SES){S.pend=id;return}const p=DB.promemoria[id];if(!p||p.deleted){S.pend=id;return toast('Promemoria non ancora sincronizzato: riprova tra poco')}
+ if(role()==='lettura'||!chatOn()||!(role()==='admin'||perMe(p)))return toast('Chat non disponibile');S.chat={pid:id,sent:0};const adm=role()==='admin',d=dests(p);
+ modal(`<h3>🔔 ${esc(p.titolo)}</h3><p class="mu sm">${fmtT(qd(p))}${p.testo?' · '+esc(p.testo):''}</p><div id="cbn" class="card" style="background:#fbeaed;border-color:#c8102e55"><span class="sm">⚠ ${BCH}</span></div><div id="cm" class="chat"></div>
+ ${ta('cT','Il tuo messaggio')}${adm?`<label>Invia a<select id="cA"><option value="tutti">Tutti i destinatari</option>${(d==='tutti'?live('utenti').filter(u=>u.attivo!==false&&u.ruolo!=='cliente'&&u.id!==SES.uid).map(u=>u.id):d).map(i=>`<option value="${i}">${esc(nomeU(i))}</option>`).join('')}</select></label><div class="btns"><button class="btn" onclick="promSend($('#cA').value)">📨 Invia</button><button class="btn sec" onclick="closeM()">Chiudi</button></div>`
+ :`<div class="btns"><button class="btn" onclick="promSend('gestore')">📨 Al gestore</button><button class="btn" onclick="promSend('tutti')">👥 A tutti i destinatari</button></div><div class="btns"><button class="btn sec" onclick="closeM()">Chiudi</button></div>`}`,'chat');
+ chatRefresh();$('#cm').scrollTop=1e9;bannerChat(5000)}
+function promSend(a){const i=$('#cT'),t=i.value.trim();if(!t||!S.chat?.pid)return toast('Scrivi prima il messaggio');put('chat',{id:uid(),promId:S.chat.pid,a,utenteId:SES.uid,nome:nomeU(SES.uid),testo:t.slice(0,500),ts:Date.now()});i.value='';chatRefresh();$('#cm').scrollTop=1e9;
+ if(!S.chat.sent++){bannerChat(15000);toast('Messaggio in coda: parte con il prossimo aggiornamento (al massimo 30 secondi)')}}
+function chatRefresh(){const c=$('#cm');if(!c||!S.chat)return;
+ if(S.chat.cl){const L=live('chat').filter(m=>m.cl===S.chat.cl&&!m.servizioId).sort((a,b)=>a.ts-b.ts),fine=c.scrollHeight-c.scrollTop-c.clientHeight<40;c.innerHTML=L.map(m=>`<div class="msg ${m.utenteId===SES.uid?'me':''}"><small>${esc(m.nome)}, ${fmtT(m.ts)}</small>${esc(m.testo)}</div>`).join('')||'<p class="mu sm">Nessun messaggio.</p>';if(fine)c.scrollTop=c.scrollHeight;return}
+ if(S.chat.pid){const L=live('chat').filter(m=>m.promId===S.chat.pid).sort((a,b)=>a.ts-b.ts),fine=c.scrollHeight-c.scrollTop-c.clientHeight<40,adm=role()==='admin';
+  c.innerHTML=L.map(m=>`<div class="msg ${m.utenteId===SES.uid?'me':''}"><small>${esc(m.nome)}, ${hm(m.ts)} → ${m.a==='gestore'?'gestore':m.a==='tutti'?'tutti':esc(nomeU(m.a))}</small>${esc(m.testo)}</div>`).join('')||'<p class="mu sm">Nessun messaggio.</p>';if(fine)c.scrollTop=c.scrollHeight;return}
+const L=live('chat').filter(m=>m.servizioId===S.chat.sid).sort((a,b)=>a.ts-b.ts),fine=c.scrollHeight-c.scrollTop-c.clientHeight<40;
+ c.innerHTML=L.map(m=>`<div class="msg ${m.utenteId===SES.uid?'me':''}"><small>${esc(m.nome)}, ${hm(m.ts)}</small>${esc(m.testo)}</div>`).join('')||'<p class="mu sm">Nessun messaggio. Scrivi il primo.</p>';if(fine)c.scrollTop=c.scrollHeight}
+function chatSend(){const i=$('#cT'),t=i.value.trim();if(!t||!S.chat)return;put('chat',{id:uid(),servizioId:S.chat.sid,utenteId:SES.uid,nome:nomeU(SES.uid),testo:t.slice(0,500),ts:Date.now()});i.value='';chatRefresh();$('#cm').scrollTop=1e9;
+ if(!S.chat.sent++){bannerChat(15000);toast('Messaggio in coda: parte con il prossimo aggiornamento (al massimo 30 secondi)')}}
+function purgeChat(){let n=0;for(const m of Object.values(DB.chat)){if(m.cl!==undefined&&!m.servizioId&&!m.promId){if(Date.now()>m.ts+90*864e5){delete DB.chat[m.id];n++}continue}const s=DB.servizi[m.servizioId],pm=DB.promemoria[m.promId];if(m.promId?(!pm||pm.deleted||Date.now()>qd(pm)+7*864e5):(!s||s.deleted||!chatVivo(s))){delete DB.chat[m.id];n++}}for(let i=Q.length;i--;)if(Q[i].col==='chat'&&!DB.chat[Q[i].rec.id])Q.splice(i,1);return n}
+async function azzeraCloud(){if(!SES?.token)return toast('Serve il collegamento al cloud');if(!confirm('Cancellare TUTTI i dati nel cloud? Non si può annullare.'))return;
+ const pw=prompt('Scrivi la tua password per confermare');if(!pw)return;const t=prompt('Scrivi AZZERA in maiuscolo per procedere');if(t!=='AZZERA')return toast('Azzeramento annullato');
+ logA('Azzeramento dati cloud richiesto','azione','ok');try{const r=await api({action:'reset',token:SES.token,password:pw,conferma:t});if(r.err)return toast(r.err);toast('Cloud azzerato');setTimeout(resetLocale,1200)}catch{toast('Cloud non raggiungibile')}}
+function setFirma(on){put('impostazioni',{...cfg(),firma:on});logA('Firma a fine turno '+(on?'attivata':'disattivata'));toast('Firma '+(on?'attivata':'disattivata'));render()}
+function setChat(on){put('impostazioni',{...cfg(),chat:on});logA('Chat degli eventi '+(on?'attivata':'disattivata'));toast('Chat '+(on?'attivata':'disattivata'));render()}
+/* ============ CONSUMO DEL SERVER GRATUITO (solo gestore) ============ */
+function stimaUso(u){const n=new Date(),g=Math.max(1,(n-new Date(n.getFullYear(),n.getMonth(),1))/864e5),rate=u.cr/g,prev=rate*new Date(n.getFullYear(),n.getMonth()+1,0).getDate(),gg=rate>0?Math.max(0,u.limit-u.cr)/rate:Infinity;
+ return{rate,prev,gg,mesi:prev>0?Math.min(12,Math.round(12*u.limit/prev*10)/10):12,fine:isFinite(gg)?new Date(Date.now()+gg*864e5):null}}
+function testoStima(u){const e=stimaUso(u),f=x=>(Math.round(x*100)/100).toLocaleString('it-IT');
+ return`Al ritmo attuale (${f(e.rate)} crediti al giorno) i ${u.limit} crediti gratuiti finiscono ${e.fine?'tra circa '+Math.ceil(e.gg)+' giorni (entro il '+e.fine.toLocaleDateString('it-IT')+')':'non prima di fine mese'}. Con circa ${f(e.prev)} crediti al mese il piano gratuito copre ${e.mesi>=12?'tutto l\'anno':'circa '+e.mesi.toLocaleString('it-IT')+' mesi su 12'}. Quando i crediti finiscono Netlify mette il sito in pausa: valuta un piano a pagamento o un altro server.`}
+function barraUso(c){const u=S.usage;if(!u)return c?'':'<div class="card"><h4>Utilizzo del server</h4><p class="mu sm">Dati non ancora disponibili: servono la connessione al cloud e una sincronizzazione.</p></div>';
+ const p=Math.min(100,u.cr/u.limit*100),col=u.cr>=250?'#c8102e':u.cr>=200?'#e0a800':'#1d7f46';
+ return`<div class="${c?'':'card'}" ${c?'style="margin-bottom:10px"':''}><div class="ct"><b>${c?'Server':'Utilizzo del server'}</b><span class="sm">${Math.round(u.cr*10)/10} / ${u.limit} crediti mensili</span></div><div class="bar" style="margin-top:6px"><i style="width:${p}%;background:${col}"></i></div>${c?'':`<p class="mu sm">Accessi al server nel mese: <b>${u.n}</b>. Stima basata su calcolo e traffico delle funzioni (esclusi i deploy, 15 crediti ciascuno, e il traffico delle pagine). ${testoStima(u)}</p>`}</div>`}
+function usoCheck(){const u=S.usage;if(!u||role()!=='admin')return;S.usoAv=S.usoAv||[];const seen=LS.g('vp_uso_seen',[]);let ch=0;
+ for(const a of u.av){const k=u.m+':'+a.s;if(seen.includes(k))continue;seen.push(k);ch=1;const t=a.s>=300?'Crediti gratuiti esauriti':a.s===250?'Attenzione: 250 crediti su '+u.limit:'Consumo server: '+a.s+' crediti su '+u.limit,b=a.s>=250?testoStima(u):`Hai usato ${a.s} dei ${u.limit} crediti gratuiti del mese.`;
+  S.usoAv.push({t,b});notify(t,b.slice(0,140));if(a.s>=250)modal(`<h3>⚠ ${t}</h3><p>${esc(b)}</p><div class="btns"><button class="btn" onclick="closeM()">Ho capito</button></div>`)}
+ if(ch)LS.s('vp_uso_seen',seen.slice(-40))}
+/* ============ CONTATTO DELLO SVILUPPATORE ============ */
+const AUT={nome:'Marco Pieragostini',tel:'3318941759',mail:'marco.pieragostini@gmail.com',sito:'https://marco-msa-app-studio.netlify.app/'};
+const pubBlock=o=>`<details class="pub card" ${o?'open':''} style="border-left:4px solid var(--r);padding:8px 12px"><summary>💡 Vuoi un'app su misura?</summary><p class="sm" style="margin-top:8px">Realizzo app personalizzate e integro quelle esistenti. Scopri le mie applicazioni e richiedi un preventivo.</p><p class="sm"><b>${AUT.nome}</b><br><a href="tel:+39${AUT.tel}">📞 ${AUT.tel}</a><br><a href="mailto:${AUT.mail}">✉️ ${AUT.mail}</a></p><a class="btn" href="${AUT.sito}" target="_blank" rel="noopener">🌐 Visita il sito di ${AUT.nome}</a><div class="btns"><button class="btn sec sm" onclick="vcard()">👤 Salva in rubrica</button><button class="btn sec sm" onclick="vcard(1)">📤 Condividi contatto</button><button class="btn sec sm" onclick="vcardPdf()">📄 Contatto in PDF</button></div></details>`;
+function vcard(share){const v=['BEGIN:VCARD','VERSION:3.0','N:Pieragostini;Marco;;;','FN:'+AUT.nome,'TEL;TYPE=CELL:+39'+AUT.tel,'EMAIL;TYPE=INTERNET:'+AUT.mail,'URL:'+AUT.sito,'NOTE:Sviluppo di app personalizzate e integrazioni','END:VCARD'].join('\r\n'),n='Marco_Pieragostini.vcf';
+ try{const f=new File([v],n,{type:'text/vcard'});if(share&&navigator.canShare?.({files:[f]}))return navigator.share({files:[f],title:AUT.nome}).catch(()=>{})}catch{}
+ download(n,new Blob([v],{type:'text/vcard'}));toast(share?'Condivisione non supportata: file contatto scaricato':'Contatto scaricato: aprilo per salvarlo in rubrica')}
+function vcardPdf(){const d=mkPdf();d.rect(0,d.H-90,d.W,90,'0.23 0.25 0.27');d.rect(0,d.H-94,d.W,4,'0.78 0.06 0.18');d.text(AUT.nome,40,d.H-52,22,1,'1 1 1');d.text('Sviluppo di app personalizzate e integrazioni',40,d.H-74,11,0,'1 1 1');d.setY(d.H-130);
+ d.p('Telefono: '+AUT.tel,13,1,'0.1 0.2 0.6',40,'tel:+39'+AUT.tel);d.gap(6);d.p('Email: '+AUT.mail,13,1,'0.1 0.2 0.6',40,'mailto:'+AUT.mail);d.gap(6);d.p('Sito: '+AUT.sito,13,1,'0.1 0.2 0.6',40,AUT.sito);d.gap(14);
+ d.p('Realizzo applicazioni personalizzate e integro quelle esistenti. Per salvare il contatto direttamente in rubrica usa il pulsante "Salva in rubrica" dell\'app (file .vcf).',10,0,'0.35 0.35 0.35');download('Contatto_Marco_Pieragostini.pdf',d.save(AUT.nome))}
+/* ============ ACCESSO ============ */
+function authView(mode,srv){S.am=mode;bg();$('#shell').hidden=true;const a=$('#auth');a.hidden=false;const c=cfg(),rec=mode==='recupero',setup=mode==='setup'||rec;
+ a.innerHTML=`<div class="auth"><div class="brand"><img src="${c.logo||LOGO}" alt="Logo"><h2 style="margin:8px 0 2px">${esc(c.azienda||'Vigilanza Privata')}</h2><p class="mu">Disponibilità e presenze dei volontari</p></div><div class="card">
+ ${setup?`<h3>${rec?'Nuovo amministratore':'Prima configurazione'}</h3><p class="mu sm">${rec?'Il sito è stato ripubblicato: imposta di nuovo l\'amministratore. Volontari e dati restano.':srv?'Crea l\'account amministratore del sistema.':'Server non raggiungibile: l\'app parte in modalità locale su questo dispositivo. Potrai collegarla al cloud da Impostazioni.'}</p>${rec?'':inp('aZ','Nome azienda','Agenzia Vigilanza Privata')}<div class="g2">${inp('aN','Nome')}${inp('aC','Cognome')}</div>${rec?'':`<h4>📍 Sede associativa</h4><p class="mu sm">Indica il punto geografico della sede: serve per calcolare le distanze e per il luogo di ritrovo.</p>${inp('aSv','Via / piazza')}<div class="g2">${inp('aSn','N. civico')}${inp('aSp','CAP','','text','inputmode="numeric"')}</div>${inp('aSc','Città')}<button class="btn sec w" type="button" onclick="sedeGps()">📍 Usa la mia posizione per la sede</button><p id="aSg" class="mu sm"></p>`}`:'<h3>Accesso</h3>'}
+ ${inp('aU','Nome utente','','text','autocapitalize="off" autocomplete="username"')}${inp('aP','Password','','password',`autocomplete="${setup?'new-password':'current-password'}"`)}
+ <button class="btn w" id="aGo">${setup?'Crea account e accedi':'Accedi'}</button><p id="aMsg" class="sm" style="color:var(--r)"></p></div>
+ <p class="sm" style="text-align:center"><a href="#" onclick="authView('${setup?'login':'setup'}');return false">${setup?'Ho già un account':'Prima installazione'}</a> &nbsp;|&nbsp; <a href="#" onclick="info();return false">Informazioni</a> &nbsp;|&nbsp; ${S.needAdmin&&!setup?'<a href="#" onclick="authView(\'recupero\');return false">Reimposta amministratore</a> &nbsp;|&nbsp; ':''}<a href="#" onclick="setVoce(!voceOn());return false">${voceOn()?'🔊 Voce guida attiva':'🔇 Voce guida spenta'}</a></p>${pubBlock()}</div>`;parla(setup?'Prima configurazione. Scrivi il nome dell\'azienda, i tuoi dati, un nome utente e una password, poi tocca Crea account. Ti verrà chiesto il permesso del microfono.':'Benvenuto. Scrivi nome utente e password e tocca Accedi. Dopo l\'accesso ti verrà chiesto il permesso del microfono.');
+ $('#aGo').onclick=setup?doSetup:doLogin;a.onkeydown=e=>{if(e.key==='Enter')$('#aGo').click()}}
+async function doSetup(){const rec=S.am==='recupero',m=$('#aMsg'),az=rec?'':val('aZ'),n=val('aN'),c=val('aC'),un=val('aU').toLowerCase(),pw=$('#aP').value;
+ if(!n||!c||!un)return m.textContent='Compila nome, cognome e nome utente';if(pw.length<6)return m.textContent='La password deve avere almeno 6 caratteri';
+ const sd=rec?{}:{via:val('aSv'),civico:val('aSn'),cap:val('aSp'),citta:val('aSc')};if(!rec&&!S.sedeGps&&(!sd.via||!sd.civico||!sd.cap||!sd.citta))return m.textContent='Indica la sede associativa (via, civico, CAP, città) o usa la tua posizione';
+ m.textContent='Ricerca della sede…';const pt=rec?null:S.sedeGps||await geo(indir(sd));if(!rec&&!pt)return m.textContent='Indirizzo della sede non trovato: controllalo oppure usa il pulsante della posizione';
+ m.textContent='Creazione in corso…';const u={id:uid(),nome:n,cognome:c,cell:'',email:'',username:un,ruolo:'admin',attivo:true,creato:Date.now()};u.updatedAt=Date.now();u.updatedBy=u.id;const p=await mkPw(pw);
+ let tok=null;try{const r=await api({action:rec?'adminsetup':'setup',user:{...u,pw:p}});if(r.err)return m.textContent=r.err+(r._st===403&&!rec?'. Usa "Ho già un account".':'');tok=r.token;if(r.user)Object.assign(u,r.user)}catch{}
+ if(rec&&!tok)return m.textContent='Serve la connessione al cloud'
+ CREDS[u.id]={username:un,...p,token:tok};LS.s('vp_creds',CREDS);SES={uid:u.id,token:tok};LS.s('vp_session',SES);LS.s('vp_lastuid',u.id);
+ DB.utenti[u.id]=u;saveDB();if(!tok)put('utenti',{...u},{pw:p});rec||put('impostazioni',{...cfg(),azienda:az||'Agenzia Vigilanza Privata',sede:{...sd,...pt}});
+ S.gpsLog&&logA('Accesso GPS (sede associativa)','permesso',S.gpsLog);logA('Configurazione iniziale'+(tok?'':' (modalità locale)'),'accesso','ok');await micAccesso();startApp();sync()}
+async function doLogin(){const m=$('#aMsg'),un=val('aU').toLowerCase(),pw=$('#aP').value;if(!un||!pw)return m.textContent='Inserisci nome utente e password';m.textContent='Verifica in corso…';
+ let r=null;try{r=await api({action:'login',username:un,password:pw})}catch{}
+ if(r&&!r.token)return m.textContent=r.err||'Accesso negato';
+ if(r){const u=r.user,last=LS.g('vp_lastuid',null);
+  if(last&&last!==u.id){DB={};COLS.forEach(c=>DB[c]={});SEQ=0;LS.s('vp_seq',0)} // utente diverso: niente dati del precedente
+  if(DB.utenti[u.id]&&DB.utenti[u.id].ruolo!==u.ruolo){SEQ=0;LS.s('vp_seq',0)} // ruolo cambiato mentre l'app era chiusa: risincronizza
+  DB.utenti[u.id]=u;saveDB();CREDS[u.id]={username:un,salt:r.salt,hash:await pbk(pw,r.salt),token:r.token};SES={uid:u.id,token:r.token}}
+ else{const e=Object.entries(CREDS).find(([,c])=>c.username===un);
+  if(!e||!DB.utenti[e[0]]||DB.utenti[e[0]].attivo===false||await pbk(pw,e[1].salt)!==e[1].hash)return m.textContent='Offline: credenziali non riconosciute su questo dispositivo. Il primo accesso richiede la connessione.';
+  SES={uid:e[0],token:e[1].token||null}}
+ LS.s('vp_creds',CREDS);LS.s('vp_session',SES);LS.s('vp_lastuid',SES.uid);logA(r?'Accesso':'Accesso offline','accesso','ok');m.textContent='Richiesta permesso microfono…';await micAccesso();startApp();sync()}
+async function logout(force){if(!force){logA('Uscita','accesso');await sync();if(Q.length&&!confirm(`${Q.length} modifiche non sono ancora arrivate al cloud. Restano su questo dispositivo e partiranno al prossimo accesso. Uscire comunque?`))return}
+ await pushSub(true);LS.s('vp_push','');SES=null;localStorage.removeItem('vp_session');location.reload()}
+/* ============ NAVIGAZIONE ============ */
+const NAV={admin:[['servizi','📋','Servizi'],['turno','⏱','Turno'],['stats','📊','Statistiche'],['volontari','👥','Volontari'],['altro','☰','Altro']],
+ cliente:[['servizi','📋','Eventi'],['richieste','➕','Richieste'],['altro','☰','Altro']],tecnico:[['servizi','📋','Servizi'],['turno','⏱','Turno'],['stats','📊','Statistiche'],['altro','☰','Altro']],lettura:[['servizi','📋','Servizi'],['stats','📊','Statistiche'],['altro','☰','Altro']]};
+let started=false;
+function startApp(){S.gv=null;purge();$('#auth').hidden=true;$('#shell').hidden=false;S.view='servizi';render();if(started)return;started=true;setInterval(()=>sync(),30000);setInterval(checkProm,60000);setTimeout(checkProm,2500);setTimeout(pushSub,4000)}
+function render(){if(!SES)return;const u=me();if(!u)return logout(true);const c=cfg();
+ bg();$('#hVi').textContent=voceOn()?'🔊':'🔇';$('#hLogo').src=c.logo||LOGO;$('#hAz').textContent=c.azienda||'Vigilanza Privata';$('#hUser').textContent=u.nome+' '+u.cognome+', '+RUOLI[u.ruolo];
+ if(!VIEWS[S.view]||(S.view==='volontari'&&u.ruolo!=='admin')||(S.view==='cestino'&&u.ruolo!=='admin')||(['archivio','ricorr'].includes(S.view)&&u.ruolo==='tecnico')||(S.view==='turno'&&['lettura','cliente'].includes(u.ruolo))||(u.ruolo==='cliente'&&!['servizi','richieste','altro','impostazioni'].includes(S.view))||(S.view==='richieste'&&!['admin','cliente'].includes(u.ruolo)))S.view='servizi';
+ const sub=['storico','promemoria','impostazioni','cestino'].includes(S.view)||(S.view==='richieste'&&u.ruolo==='admin');
+ $('#nav').innerHTML=(NAV[u.ruolo]||NAV.lettura).map(([k,i,l])=>`<button data-k="${k}" class="${k==='turno'&&turnoRosso()?'rd ':''}${S.view===k||(k==='altro'&&sub)||(k==='stats'&&['archivio','ricorr'].includes(S.view))?'on':''}" onclick="nav('${k}')"><b>${i}</b>${l}</button>`).join('');
+ VIEWS[S.view]();dot();$('#bc').textContent=S.alerts.length||'';guidaVista()}
+/* Turno rosso: servizio di oggi (o già iniziato) con disponibilità data e check-out non ancora fatto */
+function turnoRosso(){if(!SES)return false;const t=ymd(Date.now());return live('risposte').some(r=>{if(r.utenteId!==SES.uid||r.esito!=='si')return false;const s=DB.servizi[r.servizioId],p=DB.presenze[r.servizioId+'_'+SES.uid];return s&&!s.deleted&&!p?.checkOut&&!bloccato(s)&&(s.data===t||(p?.checkIn&&s.data<t))})}
+function nav(k){({volontari:1,storico:1})[k]?guard(k,()=>go(k)):go(k)}
+function go(v){S.view=v;render();scrollTo(0,0)}
+const back=`<button class="btn sec sm" onclick="go('altro')">← Altro</button>`;
+/* ============ PIN FUNZIONI RISERVATE ============ */
+async function guard(k,fn){const c=cfg();if(!c.pinHash||!(c.riservate||[]).includes(k))return fn();
+ if(S.idle>(c.timeout||5)*6e4)S.pinOk=false;if(S.pinOk)return fn();
+ modal(`<h3>🔒 Funzione riservata</h3><p class="mu">${RISERV[k]}</p>${inp('fPin','PIN','','password','inputmode="numeric" autocomplete="off"')}<div class="btns"><button class="btn sec" onclick="closeM()">Annulla</button><button class="btn" id="pinOk">Sblocca</button></div>`);
+ $('#fPin').focus();$('#fPin').onkeydown=e=>{if(e.key==='Enter')$('#pinOk').click()};
+ $('#pinOk').onclick=async()=>{if(await pbk($('#fPin').value,c.pinSalt)===c.pinHash){S.pinOk=true;closeM();logA('Sblocco funzione riservata: '+RISERV[k],'accesso','ok');fn()}else{logA('PIN errato: '+RISERV[k],'accesso','negato');toast('PIN errato')}}}
+/* ============ PERMESSI: GPS, MICROFONO, NOTIFICHE ============ */
+// Indirizzo dalla posizione (OpenStreetMap Nominatim) e km su strada (OSRM): servizi gratuiti, senza chiavi. Le coordinate non vengono salvate
+async function revGeo(la,lo){try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${la}&lon=${lo}`,{headers:{'Accept-Language':'it'},signal:AbortSignal.timeout?.(8000)}),j=await r.json(),a=j.address||{};
+ const via=a.road||a.pedestrian||a.footway||a.path||'',pae=a.city||a.town||a.village||a.municipality||a.hamlet||'',t=[[via,a.house_number].filter(Boolean).join(' '),pae].filter(Boolean).join(', ');logA('Ricerca indirizzo dalla posizione','azione',t?'ok':'non trovato');return t||null}catch{return null}}
+const addr=async p=>p?.lat!=null?(await revGeo(p.lat,p.lng))||'indirizzo non rilevato':'';
+async function strada(a,b){if(a?.lat==null||b?.lat==null)return null;
+ try{const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`,{signal:AbortSignal.timeout?.(8000)}),j=await r.json();if(j.routes?.[0])return{km:Math.round(j.routes[0].distance/100)/10,st:0}}catch{}
+ return{km:Math.round(hav(a.lat,a.lng,b.lat,b.lng)*1.3*10)/10,st:1}}
+const kmP=p=>p?.km?(p.km.cr!=null&&p.km.rl!=null?p.km.cr+p.km.rl:+p.km.cl||0):0;
+function doveSono(p,s){const u=me();if(p.lat==null)return'sconosciuta';
+ for(const[n,la,lo]of[['casa',u.homeLat,u.homeLng],['ritrovo',s.ritrovoLat,s.ritrovoLng],['luogo',s.lat,s.lng]])if(la!=null&&hav(p.lat,p.lng,la,lo)<=Math.max(.4,(p.acc||0)/1000))return n;return'altrove'}
+function gps(){return new Promise(res=>{if(!navigator.geolocation){logA('Accesso GPS','permesso','non supportato');toast('GPS non disponibile: registro senza posizione');return res({})}
+ toast('Rilevo la posizione…');navigator.geolocation.getCurrentPosition(p=>{logA('Accesso GPS','permesso','concesso');res({lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6),acc:Math.round(p.coords.accuracy)})},
+ e=>{const n=e.code===1;logA('Accesso GPS','permesso',n?'negato':'errore');toast(n?'Posizione negata: registro senza GPS. Puoi abilitarla nelle impostazioni del browser.':'Posizione non disponibile: registro senza GPS');res({})},{enableHighAccuracy:true,timeout:15000,maximumAge:60000})})}
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function vOv(stop,hint){const d=document.createElement('div');d.id='vo';d.innerHTML=`<span class="pulse"></span><div style="flex:1"><b>In ascolto…</b><div class="sm" id="voT">${hint}</div></div><button class="btn" style="background:#fff;color:#1d2125;padding:13px 20px;font-size:16px">⏹ Stop</button>`;d.querySelector('button').onclick=stop;document.body.appendChild(d);return{set:t=>d.querySelector('#voT').textContent=t,close:()=>d.remove()}}
+// Ascolto in italiano con timeout di silenzio; se non supportato resta l'inserimento manuale
+function listen(sil=6000,hint='Parla ora'){return new Promise((res,rej)=>{if(!SR){toast('Riconoscimento vocale non supportato da questo browser: usa l\'inserimento manuale');return rej('ns')}
+ salta();const r=new SR();r.lang='it-IT';r.interimResults=true;r.continuous=false;r.maxAlternatives=3;let txt='',tm,hd,done=0,ov;
+ // Chiusura sempre garantita: su alcuni telefoni stop() non genera onend, quindi si forza dopo 600 ms (e comunque dopo 30 s)
+ const fin=()=>{if(done)return;done=1;clearTimeout(tm);clearTimeout(hd);try{r.abort()}catch{}ov.close();res(txt.trim())};
+ const stop=()=>{if(done)return;clearTimeout(tm);try{r.stop()}catch{}setTimeout(fin,600)};
+ ov=vOv(stop,hint);hd=setTimeout(stop,30000);
+ const arm=()=>{clearTimeout(tm);tm=setTimeout(stop,sil)};
+ r.onstart=()=>{logA('Accesso microfono','permesso','concesso');arm()};
+ r.onresult=e=>{txt=[...e.results].map(x=>x[0].transcript).join(' ');ov.set(txt);arm()};
+ r.onerror=e=>{clearTimeout(tm);if(/not-allowed|service-not-allowed/.test(e.error)){setTimeout(fin,50)}if(/not-allowed/.test(e.error)){logA('Accesso microfono','permesso','negato');toast('Microfono negato: abilitalo nelle impostazioni del browser o scrivi a mano')}else if(!/no-speech|aborted/.test(e.error))toast('Errore riconoscimento vocale: '+e.error)};
+ r.onend=fin;try{r.start()}catch(e){done=1;ov.close();rej(e)}})}
+function mic(id){listen(8000,'Detta il testo').then(t=>{if(t){const el=$('#'+id);el.value=(el.value?el.value+' ':'')+t}}).catch(()=>{})}
+// Interpreta sì/no con tolleranza (accenti, "ci" sentito al posto di "sì", sinonimi)
+function yesNo(t){t=' '+t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z ]/g,' ')+' ';
+ if(/ (no|non|negativo|impossibile|indisponibile) /.test(t))return'no';
+ if(/ (si|ci|sci|certo|ok|okay|accetto|disponibile|presente|confermo|va bene|d accordo) /.test(t))return'si';return null}
+function enableNotif(){if(!('Notification'in window))return toast('Notifiche non supportate su questo dispositivo: gli avvisi restano visibili nell\'app');
+ Notification.requestPermission().then(async p=>{logA('Permesso notifiche','permesso',p==='granted'?'concesso':'negato');if(p==='granted'){const ok=await pushSub();logA('Notifiche push dal server','permesso',ok?'concesso':'non disponibile');toast(ok?'Notifiche attive anche ad app chiusa':'Notifiche attive solo con l\'app aperta (su iPhone installa prima l\'app dalla schermata Home)')}else toast('Notifiche negate: puoi riattivarle dalle impostazioni del browser');render()})}
+function notify(t,b,pid,tag,go){avviso();if(!('Notification'in window)||Notification.permission!=='granted')return;
+ (navigator.serviceWorker?.getRegistration()||Promise.resolve()).then(r=>r?r.showNotification(t,{body:b,icon:'icon-192.png',vibrate:[250,120,250],silent:false,tag,renotify:!!tag,data:{prom:pid,go}}):new Notification(t,{body:b})).catch(()=>{})}
+/* Notifiche push reali (anche con l'app chiusa): chiave pubblica VAPID; quella privata sta solo nelle variabili del server */
+const VAPID='BGYnD8gOFFydbHrAnqD2R_w2b7VUfxF0sl_rLtVheewbq_G4PVyYE19enHbWgYVu0DqKHo5o5kj-5RXPYo7mYkA',u8=b=>Uint8Array.from(atob(b.replace(/-/g,'+').replace(/_/g,'/')+'=='.slice(0,(4-b.length%4)%4)),c=>c.charCodeAt(0));
+async function pushSub(off){try{if(!SES?.token||!('PushManager'in window)||!navigator.serviceWorker)return false;const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();
+ if(off){if(sub){await api({action:'pushsub',token:SES.token,sub:sub.toJSON(),off:1}).catch(()=>{});await sub.unsubscribe()}return true}
+ if(Notification.permission!=='granted')return false;if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(VAPID)});
+ const k=SES.uid+'|'+sub.endpoint;if(LS.g('vp_push','')===k)return true;const r=await api({action:'pushsub',token:SES.token,sub:sub.toJSON()});if(r.ok){LS.s('vp_push',k);return true}}catch(e){}return false}
+/* ============ SCHERMATA SERVIZI ============ */
+function vServizi(){if(isCl())return vCliente();const t=ymd(Date.now()),fut=(S.tabS||'prossimi')==='prossimi';
+ const L=live('servizi').filter(s=>fut?s.data>=t:s.data<t).sort((a,b)=>fut?byDate(a,b):byDate(b,a));
+ $('#main').innerHTML=(role()!=='lettura'&&me().homeLat==null?`<div class="card"><b>🏠 Completa il tuo indirizzo</b><p class="sm">Via, n. civico, CAP e città: servono per stimare la distanza dai servizi.</p><button class="btn sm" onclick="editInd()">Completa ora</button></div>`:'')+(role()==='admin'?barraUso(1)+(cfg().sede?.lat==null?'<div class="card"><b>📍 Sede associativa non dichiarata</b><p class="sm">Indicala per distanze e luogo di ritrovo.</p><button class="btn sm" onclick="nav(\'impostazioni\')">Vai a Impostazioni</button></div>':''):'')+`<div class="row">${seg('tabS',[['prossimi','Prossimi'],['passati','Passati']],S.tabS||'prossimi')}${role()==='admin'?'<button class="btn" onclick="editServ()">+ Nuovo</button>':''}</div>`+
+ (L.map(cardServ).join('')||`<div class="card mu">${fut?(role()==='admin'?'Nessun servizio in programma. Crea la prima richiesta con "+ Nuovo".':'Nessuna richiesta di servizio in programma.'):'Nessun servizio passato.'}</div>`)}
+function cardServ(s){const r=role(),past=s.data<ymd(Date.now()),acc=live('risposte').filter(x=>x.servizioId===s.id&&x.esito==='si').length,my=DB.risposte[s.id+'_'+SES.uid],es=my&&!my.deleted?my.esito:'';
+ let h=`<div class="card"><div class="ct"><b>${bloccato(s)?'🔒 ':''}${esc(s.titolo)}</b><span class="badge ${acc>=s.posti?'ok':'r'}">${acc}/${s.posti} posti</span></div><div class="mu sm">📅 ${fmtD(s.data)}, ore ${s.oraInizio}–${s.oraFine}<br>📍 ${esc(s.luogo)}${s.ritrovo?`<br>🤝 Ritrovo: ${esc(s.ritrovo)}`:''}${r==='admin'&&s.clienteId?`<br>👤 Cliente: ${esc(nomeU(s.clienteId))}`:''}</div>${s.note?`<p class="sm">${esc(s.note)}</p>`:''}`;
+ if(r!=='lettura'){h+=`<div style="margin-top:8px">${my&&!my.deleted?(my.esito==='si'?'<span class="badge ok">✓ Hai dato disponibilità</span>':'<span class="badge r">Non disponibile</span>')+` <span class="mu sm">${fmtT(my.ts)}</span>`:'<span class="badge">Nessuna risposta</span>'}</div>`;
+  if(!past&&!bloccato(s))h+=`<div class="btns"><button class="btn ${es==='si'?'ok':'sec'}" aria-pressed="${es==='si'}" onclick="rispondi('${s.id}','si')">${es==='si'?'✓ ':'👍 '}Disponibile</button><button class="btn ${es==='no'?'':'sec'}" aria-pressed="${es==='no'}" onclick="rispondi('${s.id}','no')">${es==='no'?'✗ ':'👎 '}Non disponibile</button><button class="btn sec" style="flex:0 0 auto" onclick="rispVoce('${s.id}')" aria-label="Rispondi a voce">🎤 Voce</button></div>`}
+ if(bloccato(s))h+='<p class="mu sm">🔒 Servizio chiuso: non è più modificabile.</p>';
+ if(r!=='tecnico')h+=`<div class="btns"><button class="btn sec" onclick="dettServ('${s.id}')">👥 Dettaglio volontari</button>${r==='admin'&&!bloccato(s)?`<button class="btn" onclick="editServ('${s.id}')">✏ Modifica servizio</button>`:''}</div>`;
+ if(r==='admin'||(r!=='lettura'&&my?.esito==='si'&&!past)||canChat(s))h+=azioniAv(s.id);return h+'</div>'}
+function rispondi(sid,esito,voce){if(bloccato(DB.servizi[sid]))return toast(LCK);const id=sid+'_'+SES.uid,old=DB.risposte[id];
+ put('risposte',{id,servizioId:sid,utenteId:SES.uid,esito,ts:Date.now(),voce:!!voce,primaRisposta:old?.primaRisposta||Date.now()});
+ logA(`Risposta "${esito==='si'?'Disponibile':'Non disponibile'}" a ${DB.servizi[sid]?.titolo}${voce?' (a voce)':''}`);toast('Risposta registrata');render();const sv=DB.servizi[sid];if(esito==='si'&&sv)parla(`Grazie, disponibilità registrata. ${new Date(sv.data+'T'+sv.oraInizio)>Date.now()?'Quando inizia il servizio, alle '+sv.oraInizio+',':'Quando inizi il servizio'} premi la casella Turno e fai il check-in.`)}
+function rispVoce(sid){listen(5000,'Di\' «sì» oppure «no»').then(t=>{const e=yesNo(t);if(e)rispondi(sid,e,true);else if(t)toast(`Non ho capito «${t}». Rispondi «sì» o «no», oppure usa i pulsanti`)}).catch(()=>{})}
+function editServ(id,pre){if(id&&bloccato(DB.servizi[id]))return toast(LCK);if(!pre)S.rq=null;const s=id?{...DB.servizi[id]}:{id:uid(),titolo:'',luogo:'',ritrovo:ritrDef(),data:ymd(Date.now()+864e5),oraInizio:'08:00',oraFine:'14:00',posti:5,note:'',stato:'aperto',...pre};S.edit=s;
+ modal(`<h3>${id?'Modifica servizio':'Nuova richiesta di servizio'}</h3>${inp('fT','Manifestazione o evento',s.titolo)}${inp('fL','Luogo del servizio',s.luogo)}${inp('fC','Comune (per le statistiche; se vuoto lo ricavo dal luogo)',s.comune||'')}${inp('fR','Luogo di ritrovo in sede',s.ritrovo||'')}<div class="g2">${inp('fD','Data',s.data,'date')}${inp('fP','Volontari necessari',s.posti,'number','min="1"')}${inp('fI','Inizio',s.oraInizio,'time')}${inp('fF','Fine',s.oraFine,'time')}</div>${ta('fN','Note per i volontari',s.note)}<label>Cliente (chi ha richiesto l'evento)<select id="fCl"><option value="">Nessuno</option>${clienti().map(u=>`<option value="${u.id}" ${s.clienteId===u.id?'selected':''}>${esc(u.cognome+' '+u.nome)}</option>`).join('')}</select></label>
+ <div class="btns">${id?`<button class="btn sec" onclick="delServ('${id}')">Elimina</button>`:''}<button class="btn sec" onclick="closeM()">Annulla</button><button class="btn" onclick="saveServ(${!id})">Salva</button></div>`,'serv')}
+async function saveServ(nuovo){const s=S.edit,vecL=s.luogo,vecR=s.ritrovo,cOld=s.comune;Object.assign(s,{comune:val('fC'),titolo:val('fT'),luogo:val('fL'),ritrovo:val('fR'),data:$('#fD').value,posti:Math.max(1,+$('#fP').value||1),oraInizio:$('#fI').value||'00:00',oraFine:$('#fF').value||'00:00',note:val('fN'),clienteId:$('#fCl').value});
+ if(!s.titolo||!s.data||!s.luogo)return toast('Evento, luogo e data sono obbligatori');if(nuovo&&bloccato(s))return toast('La data è già passata: il servizio nascerebbe chiuso e non modificabile');const sd=cfg().sede;
+ if(s.ritrovo&&(s.ritrovoLat==null||s.ritrovo!==vecR)){if(sd?.lat!=null&&s.ritrovo===ritrDef()){s.ritrovoLat=sd.lat;s.ritrovoLng=sd.lng}else{const g=await geo(s.ritrovo);s.ritrovoLat=g?.lat??null;s.ritrovoLng=g?.lng??null}}
+ if(s.lat==null||s.luogo!==vecL){const g=await geo(s.luogo);s.lat=g?.lat??null;s.lng=g?.lng??null;if(g?.comune&&(!s.comune||(s.luogo!==vecL&&s.comune===cOld)))s.comune=g.comune;if(!g)toast('Luogo non localizzato: navigatore e distanza non disponibili')}
+ put('servizi',s);if(S.rq){const q=DB.richieste[S.rq];q&&put('richieste',{...q,stato:'approvata',servizioId:s.id});S.rq=null}logA(`${nuovo?'Creata':'Modificata'} richiesta di servizio: ${s.titolo} (${s.data})`);closeM();toast('Servizio salvato');render()}
+function delServ(id){if(bloccato(DB.servizi[id]))return toast(LCK);if(!confirm('Eliminare il servizio? Le risposte già date restano nello storico.'))return;put('servizi',{...DB.servizi[id],deleted:true,delAt:Date.now()});logA('Eliminato servizio: '+DB.servizi[id].titolo);closeM();render()}
+function dettServ(sid){const s=DB.servizi[sid],vol=live('utenti').filter(u=>!['lettura','cliente'].includes(u.ruolo)&&u.attivo!==false),adm=role()==='admin';
+ const R=u=>{const x=DB.risposte[sid+'_'+u.id];return x&&!x.deleted?x:null},P=u=>DB.presenze[sid+'_'+u.id];
+ const acc=vol.filter(u=>R(u)?.esito==='si'),no=vol.filter(u=>R(u)?.esito==='no'),nr=vol.filter(u=>!R(u));
+ let h=`<h3>${esc(s.titolo)}</h3><p class="mu sm">${bloccato(s)?'🔒 Servizio chiuso, non modificabile<br>':''}${fmtD(s.data)}, ore ${s.oraInizio}–${s.oraFine}<br>${esc(s.luogo)}</p><h4>Disponibili (${acc.length} su ${s.posti})</h4>`;
+ h+=acc.map(u=>{const p=P(u),st=statoP(p);return`<div class="li"><div><b>${esc(nomeU(u.id))}</b><div class="mu sm">Accettato il ${fmtT(R(u).ts)}${p?.checkIn?`<br>Entrata ${hm(p.checkIn.ts)}${p.checkIn.lat||p.checkIn.ind?' 📍':''}`:''}${p?.checkOut?`, uscita ${hm(p.checkOut.ts)}${p.auto?' (automatica'+(p.rev?', corretta':'')+')':''}`:''}${st?`<br><b>${st}</b>${p.ore?`, ${p.ore} h`:''}`:''}</div>${p?.firma?`<img class="fthumb" src="${p.firma}" alt="Firma">`:''}</div>${adm&&(!bloccato(s)||p?.auto)?`<button class="btn sm sec" onclick="editPres('${sid}','${u.id}')">Presenza</button>`:''}</div>`}).join('')||'<p class="mu sm">Ancora nessuno.</p>';
+ h+=`<h4>Non disponibili (${no.length})</h4><p class="sm">${no.map(u=>esc(nomeU(u.id))).join(', ')||'Nessuno'}</p><h4>Nessuna risposta (${nr.length})</h4><p class="sm">${nr.map(u=>esc(nomeU(u.id))).join(', ')||'Nessuno'}</p>`;
+ modal(h+`<div class="btns"><button class="btn sec" onclick="fpServ('${sid}')">✍ Firme e posizioni</button>${adm&&!bloccato(s)?`<button class="btn sec" onclick="editServ('${sid}')">Modifica servizio</button>`:''}<button class="btn" onclick="closeM()">Chiudi</button></div>`)}
+function editPres(sid,u){if(bloccato(DB.servizi[sid])&&!DB.presenze[sid+'_'+u]?.auto)return toast(LCK);const id=sid+'_'+u,s=DB.servizi[sid],p={...(DB.presenze[id]||{id,servizioId:sid,utenteId:u})};S.edit=p;
+ modal(`<h3>Conferma presenza</h3><p><b>${esc(nomeU(u))}</b><br><span class="mu sm">${esc(s.titolo)}, ${fmtD(s.data)}</span></p><label>Esito<select id="pS">${[['presente','Presente'],['assente','Assente (non si è presentato)'],['giustificato','Assente giustificato']].map(([v,l])=>`<option value="${v}" ${(statoP(p)||'presente')===v?'selected':''}>${l}</option>`).join('')}</select></label>${inp('pO','Ore di servizio',p.ore??dur(s),'number','step="0.25" min="0"')}${p.checkOut?inp('pC','Ora di check-out'+(p.auto?' (chiuso in automatico: correggi se serve)':''),new Date(p.checkOut.ts-new Date().getTimezoneOffset()*6e4).toISOString().slice(11,16),'time')+'<p class="mu sm">Se cambi l\'ora di check-out le ore vengono ricalcolate.</p>':''}${ta('pN','Note del coordinatore',p.noteCoord||'')}
+ <div class="btns"><button class="btn sec" onclick="dettServ('${sid}')">Indietro</button><button class="btn" onclick="savePres()">Salva</button></div>`)}
+function savePres(){const p=S.edit;p.stato=$('#pS').value;p.ore=p.stato==='presente'?Math.max(0,+$('#pO').value||0):0;p.noteCoord=val('pN');p.verificatoDa=SES.uid;
+ const hc=$('#pC')?.value;if(hc&&p.checkOut){const d=new Date(p.checkOut.ts),[H,M]=hc.split(':'),t=new Date(d.getFullYear(),d.getMonth(),d.getDate(),+H,+M).getTime();if(t!==p.checkOut.ts&&t>p.checkIn.ts){p.checkOut={...p.checkOut,ts:t};p.ore=p.stato==='presente'?Math.round((t-p.checkIn.ts)/9e5)/4:0;p.rev=SES.uid}else if(t!==p.checkOut.ts)return toast('L\'ora di check-out deve essere dopo il check-in')}
+ put('presenze',p);logA(`Presenza "${p.stato}" per ${nomeU(p.utenteId)}: ${DB.servizi[p.servizioId].titolo}`);dettServ(p.servizioId);render()}
+/* ============ SCHERMATA TURNO ============ */
+function vTurno(){const t=ymd(Date.now()),y=ymd(Date.now()-864e5),P=s=>DB.presenze[s.id+'_'+SES.uid];
+ const ids=new Set([...live('risposte').filter(r=>r.utenteId===SES.uid&&r.esito==='si').map(r=>r.servizioId),...live('presenze').filter(p=>p.utenteId===SES.uid).map(p=>p.servizioId)]);
+ const mine=[...ids].map(i=>DB.servizi[i]).filter(s=>s&&!s.deleted);
+ const oggi=mine.filter(s=>s.data===t||(s.data===y&&P(s)?.checkIn&&!P(s).checkOut)),pross=mine.filter(s=>s.data>t).sort(byDate),past=mine.filter(s=>s.data<t&&!oggi.includes(s)).sort((a,b)=>byDate(b,a));
+ const done=mine.filter(s=>['presente','in servizio'].includes(statoP(P(s)))),ore=Math.round(done.reduce((a,s)=>a+(+P(s).ore||0),0)*100)/100,ass=past.filter(s=>!['presente','in servizio','giustificato'].includes(statoP(P(s)))).length;
+ let h=stendardo(SES.uid,1)+`<h4>Oggi</h4>`+(oggi.map(cardTurno).join('')||'<div class="card mu">Nessun servizio oggi. Il check-in compare qui nel giorno di un servizio per cui hai dato disponibilità.</div>');
+ h+=`<h4>Prossimi servizi confermati</h4>`+(pross.map(s=>`<div class="li"><span>${esc(s.titolo)}<br><span class="mu sm">${fmtD(s.data)}, ${s.oraInizio}–${s.oraFine}</span></span></div>`).join('')||'<p class="mu sm">Nessuno.</p>');
+ h+=`<h4>Il mio storico</h4><div class="kpi"><div><b>${ids.size}</b><span>Disponibilità date</span></div><div><b>${done.length}</b><span>Servizi svolti</span></div><div><b>${oreU(SES.uid)}</b><span>Ore di volontariato</span></div><div><b>${ass}</b><span>Assenze dopo il sì</span></div></div>`;
+ h+=past.map(s=>{const st=statoP(P(s))||'assente';return`<div class="li"><span>${esc(s.titolo)}<br><span class="mu sm">${fmtD(s.data)}, ${esc(s.luogo)}</span></span><span class="badge ${st==='presente'?'ok':st==='assente'?'r':''}">${st}${P(s)?.ore?`, ${P(s).ore} h`:''}</span></div>`}).join('');
+ $('#main').innerHTML=h}
+const APRI=18e5,iniS=s=>new Date(s.data+'T'+s.oraInizio).getTime(),mancaT=m=>m>=120?Math.floor(m/60)+' h '+(m%60)+' min':m+' min';
+function cardTurno(s){const p=DB.presenze[s.id+'_'+SES.uid];let a;
+ if(!p?.checkIn){const m=Math.ceil((iniS(s)-APRI-Date.now())/6e4);a=m>0?`<div class="card" style="background:var(--bg);text-align:center"><div class="mu sm">Il check-in si attiva 30 minuti prima dell'inizio</div><b style="font-size:1.3em">⏳ tra ${mancaT(m)}</b></div><button class="btn w" disabled style="opacity:.45">▶ Check-in non ancora attivo</button>`:`<button class="btn w" onclick="checkIn('${s.id}')">▶ Check-in: inizio servizio</button>`}
+ else if(!p.checkOut)a=`<p>In servizio dalle <b>${hm(p.checkIn.ts)}</b>${p.checkIn.ind||p.checkIn.lat?', '+esc(p.checkIn.ind||'posizione registrata'):', senza posizione'}</p><button class="btn w" onclick="checkOut('${s.id}')">⏹ Check-out e firma</button>`;
+ else a=`<p>✓ Servizio concluso ${hm(p.checkIn.ts)}–${hm(p.checkOut.ts)}: <b>${p.ore} h</b></p>${p.firma?`<img class="fthumb" src="${p.firma}" alt="Firma">`:''}`;
+ return`<div class="card"><b>${esc(s.titolo)}</b><div class="mu sm">Ore ${s.oraInizio}–${s.oraFine}, ${esc(s.luogo)}</div>${a}</div>`}
+async function checkIn(sid){if(bloccato(DB.servizi[sid]))return toast(LCK);if(Date.now()<iniS(DB.servizi[sid])-APRI)return toast('Il check-in si attiva 30 minuti prima dell\'inizio');const s=DB.servizi[sid],u=me(),pos=await gps(),dove=doveSono(pos,s),id=sid+'_'+SES.uid,ET={casa:'a casa',ritrovo:'nel luogo di ritrovo',luogo:'nel luogo del servizio'};
+ const W=dove==='altrove'?'<div class="card" style="border-left:4px solid var(--r)"><b>⚠ Non risulti a casa, nel luogo di ritrovo o nel luogo del servizio.</b><div class="sm">Se vuoi, annulla e riprova quando sei nel posto giusto.</div></div>':dove==='sconosciuta'?'<p class="mu sm">Posizione non rilevata: il check-in verrà registrato senza indirizzo.</p>':`<p>✓ Risulti ${ET[dove]}.</p>`;
+ modal(`<h3>▶ Inizio servizio</h3><p class="mu sm"><b>${esc(s.titolo)}</b></p>${W}<p class="sm">Con il check-in vengono registrati l'<b>indirizzo rilevato</b> (non le coordinate) e i <b>chilometri del percorso stradale</b> per raggiungere la tua <b>casa</b>, il <b>luogo di ritrovo</b> e il <b>luogo del servizio</b>. I chilometri finiscono nel report Excel delle statistiche.</p><div class="btns"><button class="btn sec" onclick="closeM()">Annulla</button><button class="btn" id="ciOk">Conferma check-in</button></div>`);
+ $('#ciOk').onclick=async()=>{closeM();toast('Registro il check-in…');const H={lat:u.homeLat,lng:u.homeLng},R={lat:s.ritrovoLat,lng:s.ritrovoLng},L={lat:s.lat,lng:s.lng};
+  const[ind,cr,rl,cl]=await Promise.all([addr(pos),strada(H,R),strada(R,L),strada(H,L)]);
+  put('presenze',{...(DB.presenze[id]||{}),id,servizioId:sid,utenteId:SES.uid,checkIn:{ts:Date.now(),ind},posIn:dove,km:{cr:cr?.km??null,rl:rl?.km??null,cl:cl?.km??null,st:(cr?.st||rl?.st||cl?.st)?1:0},stato:'in servizio'});
+  logA('Check-in: '+s.titolo+' ('+dove+')');toast('Check-in registrato');render();parla(`Check-in registrato. Quando il servizio termina, alle ${s.oraFine}, o se vai via prima, ricordati di premere Turno e fare il check-out.`)}}
+const firmaOn=()=>cfg().firma!==false;
+function checkOut(sid){if(bloccato(DB.servizi[sid]))return toast(LCK);const id=sid+'_'+SES.uid;if(!firmaOn())return fineSenza(sid,id);firma(async f=>{const pos=await gps(),p=DB.presenze[id],ts=Date.now();
+ put('presenze',{...p,checkOut:{ts,ind:await addr(pos)},ore:Math.round((ts-p.checkIn.ts)/9e5)/4,stato:'presente',...f});logA('Check-out con firma: '+DB.servizi[sid].titolo);toast('Turno chiuso');render()},'Fine servizio: firma')}
+function fineSenza(sid,id){modal(`<h3>Fine servizio</h3><p class="mu sm">${esc(DB.servizi[sid].titolo)}</p>${ta('fNo','Note di fine turno (facoltative)','')}<div class="btns"><button class="btn sec" onclick="closeM()">Annulla</button><button class="btn" id="fsOk">Concludi turno</button></div>`);
+ $('#fsOk').onclick=async()=>{const note=val('fNo');closeM();const pos=await gps(),p=DB.presenze[id],ts=Date.now();put('presenze',{...p,checkOut:{ts,ind:await addr(pos)},ore:Math.round((ts-p.checkIn.ts)/9e5)/4,stato:'presente',note});logA('Check-out senza firma: '+DB.servizi[sid].titolo);toast('Turno chiuso');render()}}
+/* Firma su canvas con tratto smussato (curve quadratiche tra i punti medi) */
+function firma(cb,titolo){modal(`<h3>${titolo}</h3>${inp('fFi','Firmatario (volontario o responsabile evento)',nomeU(SES.uid))}${ta('fNo','Note di fine turno','')}<canvas id="cv" class="sig" aria-label="Area firma"></canvas>
+ <div class="btns"><button class="btn sec" id="sigC">Cancella</button><button class="btn sec" onclick="closeM()">Annulla</button><button class="btn" id="sigOk">Conferma</button></div>`,'firma');
+ const c=$('#cv'),b=c.getBoundingClientRect(),d=devicePixelRatio||1;c.width=b.width*d;c.height=b.height*d;const x=c.getContext('2d');x.scale(d,d);x.lineWidth=2.4;x.lineCap=x.lineJoin='round';x.strokeStyle=x.fillStyle='#14181c';
+ let dr=false,pts=[],used=false;const P=e=>{const r=c.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
+ c.onpointerdown=e=>{dr=used=true;c.setPointerCapture(e.pointerId);pts=[P(e)];x.beginPath();x.arc(...pts[0],1.2,0,7);x.fill()};
+ c.onpointermove=e=>{if(!dr)return;pts.push(P(e));if(pts.length<3)return;const[a,m,z]=pts.slice(-3);x.beginPath();x.moveTo((a[0]+m[0])/2,(a[1]+m[1])/2);x.quadraticCurveTo(m[0],m[1],(m[0]+z[0])/2,(m[1]+z[1])/2);x.stroke()};
+ c.onpointerup=c.onpointercancel=()=>dr=false;
+ $('#sigC').onclick=()=>{x.clearRect(0,0,c.width,c.height);used=false};
+ $('#sigOk').onclick=()=>{if(!used)return toast('Manca la firma');const o=document.createElement('canvas');o.width=500;o.height=Math.round(500*c.height/c.width);const ox=o.getContext('2d');ox.fillStyle='#fff';ox.fillRect(0,0,o.width,o.height);ox.drawImage(c,0,0,o.width,o.height);
+  const f={firma:o.toDataURL('image/jpeg',.7),firmatario:val('fFi'),note:val('fNo')};closeM();cb(f)}}
+/* ============ FIRME E POSIZIONI GPS: vista gestore e PDF ============ */
+const mapUrl=c=>c.ind?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(c.ind):`https://www.google.com/maps?q=${c.lat},${c.lng}`;
+const gpsTxt=c=>c&&(c.ind||c.lat!=null)?(c.ind||`${c.lat}, ${c.lng}${c.acc?` (±${c.acc} m)`:''}`):'non rilevata';
+function pres4(sid){return Object.values(DB.presenze).filter(p=>p.servizioId===sid&&!p.deleted&&(p.checkIn||p.checkOut||p.firma)).map(p=>({u:DB.utenti[p.utenteId]||{id:p.utenteId,cognome:'',nome:''},p})).sort((a,b)=>(a.u.cognome+a.u.nome).localeCompare(b.u.cognome+b.u.nome))}
+function fpServ(sid){const s=DB.servizi[sid],L=pres4(sid),lk=c=>c?.ind||c?.lat!=null?`<a href="${mapUrl(c)}" target="_blank" rel="noopener">📍 ${gpsTxt(c)}</a>`:'<span class="mu">posizione non disponibile</span>';
+ modal(`<h3>Firme e posizioni</h3><p class="mu sm"><b>${esc(s.titolo)}</b><br>${fmtD(s.data)}, ore ${s.oraInizio}–${s.oraFine}, ${esc(s.luogo)}</p><p class="mu sm">Firme e indirizzi sono conservate ${RET} giorni, poi cancellate automaticamente.</p>`+
+ (L.map(({u,p})=>`<div class="li" style="display:block"><b>${esc(nomeU(u.id))}</b> <span class="badge">${statoP(p)||'—'}${p.ore?`, ${p.ore} h`:''}</span>
+ <div class="sm">Entrata ${p.checkIn?hm(p.checkIn.ts):'—'}: ${lk(p.checkIn)}<br>Uscita ${p.checkOut?hm(p.checkOut.ts):'—'}: ${lk(p.checkOut)}</div>
+ ${p.firma?`<img class="fgrande" src="${p.firma}" alt="Firma"><div class="mu sm">Firmatario: ${esc(p.firmatario||'')}${p.note?'<br>Note: '+esc(p.note):''}</div>`:`<div class="mu sm">${p.datiRimossi?'Firma e posizioni rimosse dopo '+RET+' giorni.':'Nessuna firma.'}</div>`}</div>`).join('')||'<p class="mu">Nessun check-in o firma per questo servizio.</p>')+
+ `<div class="btns"><button class="btn sec" onclick="dettServ('${sid}')">Indietro</button>${L.length?`<button class="btn" onclick="guard('export',()=>pdfServ('${sid}'))">⬇ Scarica PDF</button>`:''}</div>`,'fp')}
+// Scrittore PDF minimale (Helvetica, JPEG incorporati, link): nessuna libreria esterna
+function mkPdf(){const W=595,H=842,M=40,E=new TextEncoder(),P=[],IM=[],mc=document.createElement('canvas').getContext('2d');let pg,y;
+ const L1=s=>Uint8Array.from(s,c=>c.charCodeAt(0)&255),WIN={'–':'\x96','—':'\x97','’':'\x92','‘':'\x91','“':'\x93','”':'\x94','…':'\x85','€':'\x80','•':'\x95'};
+ const tx=s=>String(s??'').replace(/[–—’‘“”…€•]/g,c=>WIN[c]).replace(/[^\x20-\xff]/g,'?').replace(/[\\()]/g,'\\$&');
+ const tw=(s,z,b)=>{mc.font=(b?'bold ':'')+z+'px Helvetica,Arial,sans-serif';return mc.measureText(s).width||s.length*z*.5};
+ const reg=d=>{const u=Uint8Array.from(atob(d.split(',')[1]),c=>c.charCodeAt(0));let i=2;while(i<u.length){if(u[i]!==255){i++;continue}const m=u[i+1];if(m>=0xC0&&m<=0xC2){IM.push({u,hi:u[i+5]*256+u[i+6],wi:u[i+7]*256+u[i+8],nc:u[i+9]});return IM.length}i+=2+u[i+2]*256+u[i+3]}return 0};
+ const put=(k,x,yy,w,h)=>{const m=IM[k-1],f=Math.min(w/m.wi,h/m.hi),dw=m.wi*f,dh=m.hi*f;pg.o.push(`q ${dw.toFixed(1)} 0 0 ${dh.toFixed(1)} ${x} ${yy} cm /I${k} Do Q`);(pg.im||(pg.im=[])).push(k);return dh};
+ const add=()=>{pg={o:[],a:[]};P.push(pg);y=H-M};
+ const o={W,H,M,add,y:()=>y,setY:v=>y=v,
+  need(h){if(y-h<M)add()},
+  text(s,x,yy,z=10,b,c='0 0 0'){pg.o.push(`BT /F${b?2:1} ${z} Tf ${c} rg ${x} ${yy} Td (${tx(s)}) Tj ET`)},
+  rect(x,yy,w,h,c){pg.o.push(`${c} rg ${x} ${yy} ${w} ${h} re f`)},
+  p(s,z=10,b,c,x=M,link){const mx=W-M-x;for(const para of String(s).split('\n')){let ln='';const out=[];for(const w of para.split(' ')){if(ln&&tw(ln+' '+w,z,b)>mx){out.push(ln);ln=w}else ln=ln?ln+' '+w:w}out.push(ln);
+   for(const l of out){o.need(z*1.5);y-=z*1.35;o.text(l,x,y,z,b,c);if(link)pg.a.push({r:[x,y-2,x+tw(l,z,b),y+z],u:link})}}},
+  gap(n=6){y-=n},
+  imgAt(d,x,yy,w,h){const k=reg(d);if(k)put(k,x,yy,w,h)},
+  img(d,w,h,x=M){const k=reg(d);if(!k)return;const m=IM[k-1],f=Math.min(w/m.wi,h/m.hi);o.need(m.hi*f+4);y-=m.hi*f;put(k,x,y,w,h);y-=4},
+  save(foot){const parts=[],off=[];let n=0;const w=b=>{parts.push(b);n+=b.length},S=s=>E.encode(s);
+   P.forEach((p,i)=>p.o.push(`BT /F1 8 Tf 0.4 0.4 0.4 rg ${M} 22 Td (${tx(foot+' - Pagina '+(i+1)+' di '+P.length)}) Tj ET`));
+   const ob=(i,hd,st)=>{off[i]=n;w(S(i+' 0 obj\n'));if(st){w(S(hd.replace('LEN',st.length)+'\nstream\n'));w(st);w(S('\nendstream'))}else w(S(hd));w(S('\nendobj\n'))};
+   const base=5+IM.length;let nid=base+P.length*2;const an=P.map(p=>p.a.map(a=>({...a,id:nid++})));
+   w(S('%PDF-1.4\n'));ob(1,'<< /Type /Catalog /Pages 2 0 R >>');ob(2,`<< /Type /Pages /Kids [${P.map((_,i)=>base+i*2+1+' 0 R').join(' ')}] /Count ${P.length} >>`);
+   ob(3,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');ob(4,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+   IM.forEach((m,i)=>ob(5+i,`<< /Type /XObject /Subtype /Image /Width ${m.wi} /Height ${m.hi} /ColorSpace /${m.nc===1?'DeviceGray':'DeviceRGB'} /BitsPerComponent 8 /Filter /DCTDecode /Length LEN >>`,m.u));
+   P.forEach((p,i)=>{ob(base+i*2,'<< /Length LEN >>',L1(p.o.join('\n')));
+    ob(base+i*2+1,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << ${[...new Set(p.im||[])].map(k=>`/I${k} ${4+k} 0 R`).join(' ')} >> >> /Contents ${base+i*2} 0 R${an[i].length?` /Annots [${an[i].map(a=>a.id+' 0 R').join(' ')}]`:''} >>`)});
+   an.flat().forEach(a=>ob(a.id,`<< /Type /Annot /Subtype /Link /Rect [${a.r.map(v=>v.toFixed(1)).join(' ')}] /Border [0 0 0] /A << /S /URI /URI (${a.u}) >> >>`));
+   const xr=n;w(S(`xref\n0 ${nid}\n0000000000 65535 f \n`+Array.from({length:nid-1},(_,i)=>String(off[i+1]).padStart(10,'0')+' 00000 n \n').join('')+`trailer\n<< /Size ${nid} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`));
+   return new Blob(parts,{type:'application/pdf'})}};
+ add();return o}
+async function logoJpg(){try{const i=new Image();i.src=cfg().logo||LOGO;await i.decode();const c=document.createElement('canvas');c.width=c.height=160;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,160,160);const k=Math.min(160/i.width,160/i.height)||1,w=i.width*k,h=i.height*k;x.drawImage(i,(160-w)/2,(160-h)/2,w,h);return c.toDataURL('image/jpeg',.9)}catch{return null}}
+// Costruisce il PDF "Registro firme e posizioni" per uno o più servizi
+async function pdfFp(titolo,servizi,file){const d=mkPdf(),lg=await logoJpg(),R='0.78 0.06 0.18',az=cfg().azienda||'Vigilanza Privata',x0=lg?104:d.M;
+ d.rect(0,d.H-78,d.W,78,'0.23 0.25 0.27');d.rect(0,d.H-82,d.W,4,R);
+ if(lg){d.rect(d.M-4,d.H-70,60,60,'1 1 1');d.imgAt(lg,d.M,d.H-66,52,52)}
+ d.text(az,x0,d.H-36,16,1,'1 1 1');d.text(titolo,x0,d.H-56,11,0,'1 1 1');d.setY(d.H-100);
+ d.p('Generato il '+fmtT(Date.now())+' da '+nomeU(SES.uid)+'. Firme e indirizzi sono conservate '+RET+' giorni e poi cancellate automaticamente.',9,0,'0.4 0.4 0.4');d.gap(8);
+ for(const s of servizi){const L=pres4(s.id);d.need(70);d.gap(4);d.rect(d.M,d.y()-30,d.W-2*d.M,28,'0.93 0.94 0.95');d.rect(d.M,d.y()-30,4,28,R);
+  d.text(s.titolo,d.M+10,d.y()-14,11,1);d.text(`${fmtD(s.data)}, ore ${s.oraInizio}-${s.oraFine}, ${s.luogo}`.slice(0,95),d.M+10,d.y()-25,8.5,0,'0.35 0.35 0.35');d.setY(d.y()-36);
+  if(!L.length)d.p('Nessun check-in o firma registrati.',9,0,'0.4 0.4 0.4');
+  for(const{u,p}of L){d.need(110);d.p(`${nomeU(u.id)}  -  ${statoP(p)||'-'}${p.ore?', '+p.ore+' h':''}`,10,1);
+   for(const[et,c]of[['Entrata',p.checkIn],['Uscita',p.checkOut]]){const t=`${et} ${c?hm(c.ts):'-'}: ${c?.ind||c?.lat!=null?gpsTxt(c):'posizione non disponibile'}`;d.p(t,9,0,c?.ind||c?.lat!=null?'0.1 0.2 0.6':'0.4 0.4 0.4',d.M+8,c?.ind||c?.lat!=null?mapUrl(c):null)}
+   if(p.firma){d.p('Firmatario: '+(p.firmatario||'-')+(p.note?'  |  Note: '+p.note:''),9,0,'0 0 0',d.M+8);d.img(p.firma,200,70,d.M+8)}else d.p(p.datiRimossi?'Firma e posizioni rimosse dopo '+RET+' giorni.':'Nessuna firma.',9,0,'0.4 0.4 0.4',d.M+8);
+   d.gap(4);d.rect(d.M,d.y(),d.W-2*d.M,.5,'0.8 0.8 0.8');d.gap(4)}}
+ download(file,d.save(az));logA('Esportazione PDF firme e posizioni: '+titolo)}
+const fnm=s=>s.normalize('NFD').replace(/[^\w]+/g,'_').slice(0,40);
+function pdfServ(sid){const s=DB.servizi[sid];return pdfFp('Firme e posizioni - '+s.titolo,[s],`firme_gps_${fnm(s.titolo)}_${s.data}.pdf`)}
+function pdfPer(){const L=live('servizi').filter(s=>inPer(s.data)&&pres4(s.id).length).sort(byDate);if(!L.length)return toast('Nessuna firma o posizione nel periodo scelto');
+ return pdfFp('Registro firme e posizioni - '+(S.period==='all'?'tutto il periodo':'ultimi '+S.period+' giorni'),L,`firme_gps_${ymd(Date.now())}.pdf`)}
+/* Conservazione dati: firme e posizioni GPS si cancellano dopo RET giorni (presenze e ore restano per le statistiche) */
+function stripP(p){const sv=DB.servizi[p.servizioId],t=p.checkIn?.ts||p.checkOut?.ts||(sv?new Date(sv.data+'T12:00').getTime():0);if(!t||t>Date.now()-RET*864e5)return 0;let c=0;
+ if(p.firma){delete p.firma;c=1}for(const k of['checkIn','checkOut'])if(p[k]&&('lat'in p[k]||'lng'in p[k]||'acc'in p[k]||'ind'in p[k])){delete p[k].lat;delete p[k].lng;delete p[k].acc;delete p[k].ind;c=1}
+ if(c)p.datiRimossi=Date.now();return c}
+function purge(){let n=purgeChat();for(const p of Object.values(DB.presenze))n+=stripP(p);for(const q of Q)if(q.col==='presenze')stripP(q.rec);if(n){saveDB();LS.s('vp_queue',Q)}return n}
+/* ============ ARCHIVIO FIRME PER EVENTO ============ */
+const MESI=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+function archList(){const f=S.af||(S.af={a:'',m:'',q:''}),by={};for(const p of Object.values(DB.presenze))if(!p.deleted)(by[p.servizioId]||=[]).push(p);
+ const q=f.q.toLowerCase();return Object.values(DB.servizi).filter(s=>!s.deleted&&by[s.id]).map(s=>({s,P:by[s.id],f:by[s.id].filter(p=>p.firma).length,km:Math.round(by[s.id].filter(p=>!p.escluso).reduce((a,p)=>a+kmP(p),0)*10)/10})).sort((a,b)=>byDate(b.s,a.s))
+  .filter(x=>(!f.a||x.s.data.startsWith(f.a))&&(!f.m||x.s.data.slice(5,7)===f.m)&&(!q||(x.s.titolo+' '+x.s.luogo).toLowerCase().includes(q)))}
+function vArch(){const f=S.af||(S.af={a:'',m:'',q:''}),L=archList(),anni=[...new Set(Object.values(DB.servizi).filter(s=>!s.deleted).map(s=>s.data.slice(0,4)))].sort().reverse(),G={};
+ for(const x of L)((G[x.s.data.slice(0,4)]||={})[x.s.data.slice(5,7)]||=[]).push(x);
+ let h=`<div class="row"><button class="btn sec sm" onclick="go('stats')">← Statistiche</button></div><h3>🗂 Archivio firme ed eventi</h3><p class="mu sm">Gli eventi sono catalogati per anno e mese. Firme e indirizzi si cancellano dopo ${RET} giorni; presenze e ore restano.</p>
+ <div class="g2"><label>Anno<select onchange="S.af.a=this.value;vArch()"><option value="">Tutti</option>${anni.map(a=>`<option ${f.a===a?'selected':''}>${a}</option>`).join('')}</select></label><label>Mese<select onchange="S.af.m=this.value;vArch()"><option value="">Tutti</option>${MESI.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${f.m===String(i+1).padStart(2,'0')?'selected':''}>${m}</option>`).join('')}</select></label></div>
+ <label>Cerca evento o luogo<input type="search" value="${esc(f.q)}" onchange="S.af.q=this.value;vArch()" placeholder="Scrivi e premi Invio"></label>
+ <p class="sm"><b>${L.length}</b> eventi, <b>${L.reduce((a,x)=>a+x.f,0)}</b> firme.</p>`+(L.length?`<button class="btn sec w" onclick="guard('export',pdfArch)">⬇ PDF di tutti gli eventi mostrati</button>`:'');
+ let first=true;for(const a of Object.keys(G).sort().reverse())for(const m of Object.keys(G[a]).sort().reverse()){const E=G[a][m];
+  h+=`<details class="arc" ${first||f.a||f.m||f.q?'open':''}><summary>${MESI[+m-1]} ${a} <span class="mu sm">· ${E.length} eventi · ${E.reduce((n,x)=>n+x.f,0)} firme</span></summary>`+E.map(x=>`<div class="li" style="display:block"><div class="ct"><div><b>${bloccato(x.s)?'🔒 ':''}${esc(x.s.titolo)}</b><div class="mu sm">${fmtD(x.s.data)}, ${esc(x.s.luogo)}</div><div class="sm">👥 ${x.P.length} presenze · ✍ ${x.f} firme${x.km?` · 🚗 ${x.km} km`:''}</div></div><div><button class="btn sm sec" onclick="fpServ('${x.s.id}')">Apri</button> <button class="btn sm sec" onclick="guard('export',()=>pdfServ('${x.s.id}'))">PDF</button></div></div></div>`).join('')+'</details>';first=false}
+ $('#main').innerHTML=h+(L.length?'':'<div class="card mu">Nessun evento con presenze o firme per i filtri scelti.</div>')}
+/* ===== Calendario ricorrenze: servizi per comune, mese e settimana del mese (per pianificare l'anno dopo) ===== */
+const nSett=d=>Math.ceil(+d.slice(8,10)/7),normT=t=>String(t).toLowerCase().replace(/\b(19|20)\d\d\b|\d+\s*[°ªa]?/g,'').replace(/\s+/g,' ').trim(),comuneS=s=>((s.comune||String(s.luogo||'').split(',').pop()).trim())||'Senza comune';
+function proxAnno(d){const dt=new Date(d+'T12:00:00'),nth=nSett(d),t=ymd(Date.now());let y=dt.getFullYear()+1,r;for(;;y++){const f=new Date(y,dt.getMonth(),1);let g=1+(dt.getDay()-f.getDay()+7)%7+7*(nth-1);if(new Date(y,dt.getMonth(),g).getMonth()!==dt.getMonth())g-=7;r=`${y}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(g).padStart(2,'0')}`;if(r>=t)return r}}
+function ricorr(){const G={},pr=s=>live('presenze').filter(p=>p.servizioId===s.id&&['presente','in servizio'].includes(statoP(p))).length;
+ for(const s of live('servizi')){if(s.purged||!s.data)continue;const e=((((G[comuneS(s)]||={})[+s.data.slice(5,7)-1]||={})[nSett(s.data)]||={})[normT(s.titolo)]||={L:[]});e.L.push(s)}
+ const o=[];for(const c of Object.keys(G).sort((a,b)=>a.localeCompare(b)))for(const m of Object.keys(G[c]))for(const w of Object.keys(G[c][m]))for(const e of Object.values(G[c][m][w])){const L=e.L.sort(byDate),u=L[L.length-1];o.push({c,m:+m,w:+w,t:u.titolo,anni:[...new Set(L.map(x=>x.data.slice(0,4)))],n:L.length,pm:Math.round(L.reduce((a,x)=>a+pr(x),0)/L.length*10)/10,prox:proxAnno(u.data)})}
+ return o}
+function vRicorr(){const f=S.rcF||'',A=ricorr().filter(x=>!f||x.anni.length>1),C={};for(const x of A)(C[x.c]||=[]).push(x);
+ let h=`<div class="row"><button class="btn sec sm" onclick="go('stats')">← Statistiche</button></div><h3>🔁 Calendario ricorrenze</h3><p class="mu sm">I servizi sono raggruppati per comune, mese e settimana del mese (1ª = giorni 1-7, 2ª = 8-14, e così via). Se lo stesso evento torna nello stesso periodo ogni anno, qui vedi la data proposta per il prossimo anno: stesso giorno della settimana e stessa settimana del mese.</p>${seg('rcF',[['','Tutti'],['r','Solo ricorrenti']],f)}<p class="sm"><b>${A.length}</b> eventi in <b>${Object.keys(C).length}</b> comuni.</p>`+(A.length?`<button class="btn sec w" onclick="guard('export',expRicorr)">⬇ Esporta Excel ricorrenze</button>`:'');
+ for(const c of Object.keys(C)){h+=`<details class="arc" ${Object.keys(C).length<4?'open':''}><summary>${esc(c)} <span class="mu sm">· ${C[c].length} ${C[c].length==1?'evento':'eventi'}</span></summary>`;let m=-1;
+  for(const x of C[c].sort((a,b)=>a.m-b.m||a.w-b.w)){if(x.m!==m){m=x.m;h+=`<h4>${MESI[m]}</h4>`}
+   h+=`<div class="li" style="display:block"><div class="ct"><div><b>${x.w}ª settimana · ${esc(x.t)}</b><div class="mu sm">Anni: ${x.anni.join(', ')}${x.n>x.anni.length?` (${x.n} volte)`:''} · presenze medie ${x.pm}</div></div>${x.anni.length>1?'<span class="badge">ricorrente</span>':''}</div><div class="sm">📅 Proposta prossimo anno: <b>${fmtD(x.prox)}</b></div></div>`}
+  h+='</details>'}
+ $('#main').innerHTML=h+(A.length?'':'<div class="card mu">Nessun evento da mostrare.</div>')}
+function expRicorr(){const r=[['Comune','Mese','Settimana del mese','Evento','Anni di svolgimento','Volte','Presenze medie','Ricorrente','Data proposta prossimo anno'],...ricorr().sort((a,b)=>a.c.localeCompare(b.c)||a.m-b.m||a.w-b.w).map(x=>[x.c,MESI[x.m],x.w,x.t,x.anni.join(', '),x.n,x.pm,x.anni.length>1?'sì':'no',x.prox])];
+ download(`vigilanza_ricorrenze_${ymd(Date.now())}.xlsx`,new Blob([xlsx([['Ricorrenze',r]])],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));logA('Esportazione Excel ricorrenze')}
+function pdfArch(){const L=archList().map(x=>x.s).reverse();if(!L.length)return toast('Nessun evento da esportare');return pdfFp('Archivio firme ed eventi',L,`archivio_firme_${ymd(Date.now())}.pdf`)}
+/* ============ CESTINO (solo amministratore) ============ */
+function vCestino(){const D=c=>Object.values(DB[c]).filter(r=>r.deleted&&!r.purged),g=r=>r.delAt||r.updatedAt||0,sc=r=>fmtD(ymd(g(r)+RET*864e5)),
+ B=(f,id)=>`<button class="btn sm" onclick="${f}('${id}')">♻ Ripristina</button>`,
+ U=D('utenti').filter(r=>!r.delCasc).sort((a,b)=>g(b)-g(a)),SV=D('servizi').sort((a,b)=>g(b)-g(a)),PM=D('promemoria').sort((a,b)=>g(b)-g(a));
+ let h=`<div class="row">${back}</div><h3>🗑 Cestino</h3><p class="mu sm">Qui trovi ciò che hai eliminato. Ogni elemento si può ripristinare e viene cancellato in modo definitivo dopo ${RET} giorni dall'eliminazione.</p>`;
+ h+='<h4>Utenti</h4>'+(U.map(u=>`<div class="card"><div class="ct"><div><b>${esc(u.cognome+' '+u.nome)}</b><div class="mu sm">Eliminato il ${fmtT(g(u))}<br>${u.delMode==='storico'?'Con presenze e storico (firme conservate)':'Solo utente'}<br>Cancellazione definitiva dal ${sc(u)}</div></div>${B('ripU',u.id)}</div></div>`).join('')||'<p class="mu sm">Nessun utente.</p>');
+ h+='<h4>Servizi</h4>'+(SV.map(s=>`<div class="card"><div class="ct"><div><b>${esc(s.titolo)}</b><div class="mu sm">${fmtD(s.data)}, ${esc(s.luogo||'')}<br>Eliminato il ${fmtT(g(s))} · definitivo dal ${sc(s)}</div></div>${B('ripS',s.id)}</div></div>`).join('')||'<p class="mu sm">Nessun servizio.</p>');
+ h+='<h4>Promemoria</h4>'+(PM.map(p=>`<div class="card"><div class="ct"><div><b>${esc(p.titolo)}</b><div class="mu sm">Eliminato il ${fmtT(g(p))} · definitivo dal ${sc(p)}</div></div>${B('ripP',p.id)}</div></div>`).join('')||'<p class="mu sm">Nessun promemoria.</p>');
+ $('#main').innerHTML=h}
+function ripU(id){const u=DB.utenti[id];if(!u)return;if(live('utenti').some(x=>x.username===u.username))return toast('Il nome utente è già usato da un altro utente: modificalo prima di ripristinare');
+ const{delAt,delMode,...r}=u;put('utenti',{...r,deleted:false});for(const p of Object.values(DB.presenze))if(p.delCasc===id)put('presenze',{...p,escluso:false,delCasc:null});for(const x of Object.values(DB.risposte))if(x.delCasc===id)put('risposte',{...x,deleted:false,delCasc:null});
+ logA(`Ripristinato utente ${u.nome} ${u.cognome}`);toast('Utente ripristinato');render()}
+function ripS(id){const s=DB.servizi[id];put('servizi',{...s,deleted:false,delAt:null});logA('Ripristinato servizio: '+s.titolo);toast('Servizio ripristinato');render()}
+function ripP(id){const p=DB.promemoria[id];put('promemoria',{...p,deleted:false,delAt:null});logA('Ripristinato promemoria: '+p.titolo);toast('Promemoria ripristinato');render()}
+/* ============ STATISTICHE ============ */
+function stats(){const t=ymd(Date.now()),serv=live('servizi').filter(s=>s.data<=t&&inPer(s.data));
+ return Object.values(DB.utenti).filter(u=>!['lettura','cliente'].includes(u.ruolo)&&(!u.deleted||(u.delMode==='utente'&&!u.purged))).map(u=>{const r={u,ric:0,si:0,no:0,nr:0,pres:0,ass:0,ore:0,km:0};
+  for(const s of serv){if((u.creato||0)>new Date(s.data+'T23:59').getTime())continue;r.ric++;const x=DB.risposte[s.id+'_'+u.id],p=DB.presenze[s.id+'_'+u.id],st=p&&!p.deleted?statoP(p):'';
+   if(!x||x.deleted)r.nr++;else if(x.esito==='no')r.no++;else r.si++;
+   if(st==='presente'||st==='in servizio'){r.pres++;r.ore+=+p.ore||0;r.km+=kmP(p)}else if(x?.esito==='si'&&!x.deleted&&s.data<t&&st!=='giustificato')r.ass++}
+  r.ore=Math.round(r.ore*100)/100;r.km=Math.round(r.km*10)/10;r.tr=r.ric?Math.round((r.si+r.no)/r.ric*100):0;r.aff=r.si?Math.min(100,Math.round(r.pres/r.si*100)):null;return r})}
+function vStats(){const st=stats(),adm=role()!=='tecnico',t=ymd(Date.now());
+ const T=st.reduce((a,r)=>{['ric','si','pres','ass','ore'].forEach(k=>a[k]+=r[k]);return a},{ric:0,si:0,pres:0,ass:0,ore:0}),nS=live('servizi').filter(s=>s.data<=t&&inPer(s.data)).length;
+ let h=seg('period',[[30,'30 giorni'],[90,'90 giorni'],[365,'1 anno'],['all','Tutto']],S.period)+`<div class="kpi">${[[adm?nS:T.ric,adm?'Servizi nel periodo':'Richieste ricevute'],[T.si,'Disponibilità date'],[T.pres,'Presenze'],[Math.round(T.ore*10)/10,'Ore di servizio'],[T.ass,'Assenze dopo il sì']].map(([v,l])=>`<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>`;
+ if(adm){const R=[...st].sort((a,b)=>b.ass-a.ass||a.tr-b.tr);
+  h+=`<div class="card"><h4>Ore per volontario</h4><canvas id="c1" class="ch"></canvas></div><div class="card"><h4>Presenze e assenze dopo il sì</h4><canvas id="c2" class="ch"></canvas><div class="leg"><span><i style="background:#8a9099"></i>Presenze</span><span><i style="background:#c8102e"></i>Assenze dopo il sì</span></div></div>
+  <div class="card"><h4>Affidabilità volontari</h4><p class="mu sm">In rosso chi ha 2 o più assenze dopo aver dato disponibilità, o risponde a meno della metà delle richieste.</p><div class="tw"><table><tr><th>Volontario</th><th>Rich.</th><th>Sì</th><th>No</th><th>Senza risp.</th><th>Pres.</th><th>Ass.</th><th>Ore periodo</th><th>Km</th><th>Ore totali</th><th>Risposta</th><th>Affidabilità</th></tr>
+  ${R.map(r=>`<tr class="${r.ass>=2||(r.ric>=3&&r.tr<50)?'bad':''}"><td>${esc(r.u.cognome+' '+r.u.nome)}${r.u.deleted?' <i>(eliminato)</i>':''}</td><td>${r.ric}</td><td>${r.si}</td><td>${r.no}</td><td>${r.nr}</td><td>${r.pres}</td><td>${r.ass}</td><td>${r.ore}</td><td>${r.km}</td><td><b>${oreU(r.u.id)}</b>${oreU(r.u.id)>=TRAG?' 🏅':''}</td><td>${r.tr}%</td><td>${r.aff==null?'–':r.aff+'%'}</td></tr>`).join('')}</table></div></div>`}
+ else h=stendardo(SES.uid,1)+h+`<div class="card"><h4>Le mie ore per mese</h4><canvas id="c3" class="ch"></canvas></div>`;
+ $('#main').innerHTML=h+`<button class="btn w" onclick="guard('export',expXlsx)">⬇ Esporta Excel</button>`+(adm?`<button class="btn sec w" onclick="guard('export',pdfPer)">⬇ PDF firme e posizioni del periodo</button><button class="btn sec w" onclick="nav('archivio')">🗂 Archivio firme per evento</button><button class="btn sec w" onclick="nav('ricorr')">🔁 Calendario ricorrenze (comune, mese, settimana)</button>`:'');
+ if(adm){const a=[...st].sort((x,y)=>y.ore-x.ore).slice(0,12),b=[...st].sort((x,y)=>(y.pres+y.ass)-(x.pres+x.ass)).slice(0,12);
+  chart('c1',a.map(r=>r.u.cognome),[{v:a.map(r=>r.ore),c:'#c8102e'}]);chart('c2',b.map(r=>r.u.cognome),[{v:b.map(r=>r.pres),c:'#8a9099'},{v:b.map(r=>r.ass),c:'#c8102e'}],true)}
+ else{const M=[],n=new Date();for(let i=11;i>=0;i--){const d=new Date(n.getFullYear(),n.getMonth()-i,1);M.push({k:ymd(d).slice(0,7),l:d.toLocaleDateString('it-IT',{month:'short'})+' '+String(d.getFullYear()).slice(2),v:0})}
+  for(const p of live('presenze'))if(p.utenteId===SES.uid){const s=DB.servizi[p.servizioId],m=s&&M.find(x=>x.k===s.data.slice(0,7));if(m)m.v+=+p.ore||0}
+  chart('c3',M.map(m=>m.l),[{v:M.map(m=>m.v),c:'#c8102e'}])}}
+/* Grafico a barre su canvas (semplici o impilate), nessuna libreria esterna */
+function chart(id,labels,series,stack){const c=$('#'+id);if(!c)return;const d=devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;c.width=W*d;c.height=H*d;const x=c.getContext('2d');x.scale(d,d);
+ const cs=getComputedStyle(document.body),tx=cs.getPropertyValue('--mu').trim(),ln=cs.getPropertyValue('--ln').trim();
+ const tot=labels.map((_,i)=>stack?series.reduce((a,s)=>a+s.v[i],0):Math.max(...series.map(s=>s.v[i]))),mx=Math.max(1,...tot);
+ const L=30,B=54,T=8,ch=H-T-B,cw=(W-L-4)/Math.max(1,labels.length);x.font='11px system-ui';x.strokeStyle=ln;x.fillStyle=tx;
+ for(let k=0;k<=4;k++){const y=T+ch*(1-k/4);x.beginPath();x.moveTo(L,y);x.lineTo(W,y);x.stroke();x.fillText(String(Math.round(mx*k/4*10)/10),2,y+4)}
+ if(!labels.length){x.fillText('Nessun dato nel periodo',L+10,T+ch/2);return}
+ labels.forEach((lb,i)=>{let y0=T+ch;const bw=stack?cw*.6:cw*.7/series.length;
+  series.forEach((s,j)=>{const h=ch*s.v[i]/mx,bx=L+i*cw+cw*.15+(stack?0:j*bw);x.fillStyle=s.c;if(stack){x.fillRect(bx,y0-h,bw,h);y0-=h}else x.fillRect(bx,T+ch-h,bw,h)});
+  x.save();x.translate(L+i*cw+cw/2,T+ch+8);x.rotate(-.6);x.fillStyle=tx;x.textAlign='right';x.fillText(String(lb).slice(0,12),0,6);x.restore()})}
+/* ============ EXCEL (.xlsx nativo: XML + zip senza compressione) ============ */
+function expXlsx(){const st=stats(),t=ymd(Date.now()),serv=live('servizi').filter(s=>s.data<=t&&inPer(s.data)).sort(byDate);
+ const s1=[['Volontario','Cellulare','Email','Richieste','Disponibile','Non disponibile','Nessuna risposta','Presenze','Assenze dopo il sì','Ore nel periodo','Km andata nel periodo','Tasso risposta %','Affidabilità %','Ore totali di volontariato'],...st.map(r=>[r.u.cognome+' '+r.u.nome,r.u.cell||'',r.u.email||'',r.ric,r.si,r.no,r.nr,r.pres,r.ass,r.ore,r.km,r.tr,r.aff??'',oreU(r.u.id)])];
+ const s2=[['Data','Servizio','Luogo','Volontario','Risposta','Data risposta','Entrata','Uscita','Esito','Ore','Firmatario','Indirizzo entrata','Indirizzo uscita','Posizione al check-in','Km casa-ritrovo','Km ritrovo-luogo','Km casa-luogo','Km andata','Km stimati (non su strada)']];
+ for(const s of serv)for(const{u}of st){const x=DB.risposte[s.id+'_'+u.id],p=DB.presenze[s.id+'_'+u.id];if(!x&&!p)continue;
+  s2.push([s.data,s.titolo,s.luogo,u.cognome+' '+u.nome,x?(x.esito==='si'?'Disponibile':'Non disponibile'):'',x?fmtT(x.ts):'',p?.checkIn?fmtT(p.checkIn.ts):'',p?.checkOut?fmtT(p.checkOut.ts):'',p?statoP(p):(x?.esito==='si'&&s.data<t?'assente':''),p?.ore??'',p?.firmatario||'',p?.checkIn?.ind||'',p?.checkOut?.ind||'',p?.posIn||'',p?.km?.cr??'',p?.km?.rl??'',p?.km?.cl??'',kmP(p)||'',p?.km?.st?'sì':''])}
+ const s3=[['Data','Servizio','Luogo','Inizio','Fine','Posti','Disponibili','Presenti'],...serv.map(s=>[s.data,s.titolo,s.luogo,s.oraInizio,s.oraFine,+s.posti,live('risposte').filter(x=>x.servizioId===s.id&&x.esito==='si').length,live('presenze').filter(p=>p.servizioId===s.id&&['presente','in servizio'].includes(statoP(p))).length])];
+ download(`vigilanza_presenze_${t}.xlsx`,new Blob([xlsx([['Riepilogo volontari',s1],['Dettaglio presenze',s2],['Servizi',s3]])],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));logA(`Esportazione Excel (${st.length} volontari)`)}
+function xlsx(sheets){const X=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,'');
+ const cn=i=>{let s='';for(i++;i;i=(i-1)/26|0)s=String.fromCharCode(65+(i-1)%26)+s;return s};
+ const H='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',NS='http://schemas.openxmlformats.org/',f={};
+ f['[Content_Types].xml']=H+`<Types xmlns="${NS}package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`;
+ f['_rels/.rels']=H+`<Relationships xmlns="${NS}package/2006/relationships"><Relationship Id="rId1" Type="${NS}officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+ f['xl/workbook.xml']=H+`<workbook xmlns="${NS}spreadsheetml/2006/main" xmlns:r="${NS}officeDocument/2006/relationships"><sheets>${sheets.map(([n],i)=>`<sheet name="${X(n).slice(0,31)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`;
+ f['xl/_rels/workbook.xml.rels']=H+`<Relationships xmlns="${NS}package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="${NS}officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}</Relationships>`;
+ sheets.forEach(([,rows],i)=>f[`xl/worksheets/sheet${i+1}.xml`]=H+`<worksheet xmlns="${NS}spreadsheetml/2006/main"><sheetData>${rows.map((r,y)=>`<row r="${y+1}">${r.map((v,c)=>{const a=cn(c)+(y+1);return typeof v==='number'&&isFinite(v)?`<c r="${a}"><v>${v}</v></c>`:`<c r="${a}" t="inlineStr"><is><t xml:space="preserve">${X(v)}</t></is></c>`}).join('')}</row>`).join('')}</sheetData></worksheet>`);
+ return zip(f)}
+function zip(files){const E=new TextEncoder(),T=zip.t||(zip.t=Array.from({length:256},(_,n)=>{for(let k=0;k<8;k++)n=n&1?0xEDB88320^(n>>>1):n>>>1;return n>>>0}));
+ const crc=b=>{let c=~0;for(const x of b)c=T[(c^x)&255]^(c>>>8);return~c>>>0},w=(dv,a)=>a.forEach(([o,v,s])=>s===4?dv.setUint32(o,v,true):dv.setUint16(o,v,true));
+ const out=[],cd=[];let off=0;
+ for(const[name,txt]of Object.entries(files)){const n=E.encode(name),d=E.encode(txt),c=crc(d),h=new DataView(new ArrayBuffer(30)),g=new DataView(new ArrayBuffer(46));
+  w(h,[[0,0x04034b50,4],[4,20],[6,0x800],[12,33],[14,c,4],[18,d.length,4],[22,d.length,4],[26,n.length]]);
+  w(g,[[0,0x02014b50,4],[4,20],[6,20],[8,0x800],[14,33],[16,c,4],[20,d.length,4],[24,d.length,4],[28,n.length],[42,off,4]]);
+  out.push(h,n,d);cd.push(g,n);off+=30+n.length+d.length}
+ const e=new DataView(new ArrayBuffer(22)),k=Object.keys(files).length;w(e,[[0,0x06054b50,4],[8,k],[10,k],[12,cd.reduce((a,x)=>a+x.byteLength,0),4],[16,off,4]]);return new Blob([...out,...cd,e])}
+/* ============ VOLONTARI (solo amministratore) ============ */
+function vVol(){$('#main').innerHTML=`<div class="row"><input id="qv" placeholder="Cerca per nome, utente o telefono" value="${esc(S.qv||'')}" oninput="S.qv=this.value;vVolList()"><button class="btn" onclick="editU()">+ Nuovo</button></div><div id="vl"></div>`;vVolList()}
+function vVolList(){const q=(S.qv||'').toLowerCase(),L=live('utenti').filter(u=>(u.nome+' '+u.cognome+' '+u.username+' '+(u.cell||'')).toLowerCase().includes(q)).sort((a,b)=>(a.cognome+a.nome).localeCompare(b.cognome+b.nome));
+ $('#vl').innerHTML=`<p class="mu sm">${L.length} utenti</p>`+L.map(u=>`<div class="card"><div class="ct"><div><b>${esc(u.cognome+' '+u.nome)}</b><div class="mu sm">@${esc(u.username)}${u.cell?`<br><a href="tel:${esc(u.cell)}">${esc(u.cell)}</a>`:''}${u.email?`<br>${esc(u.email)}`:''}${u.via?`<br>🏠 ${esc(indir(u))}`:''}</div></div><div style="text-align:right"><span class="badge ${u.attivo===false?'r':''}">${u.attivo===false?'Sospeso':RUOLI[u.ruolo]}</span><br><b style="font-size:18px">${oreU(u.id)} h</b>${oreU(u.id)>=TRAG?' 🏅':''}<br><div class="btns" style="margin-top:6px;flex-wrap:nowrap"><button class="btn sm sec" onclick="editU('${u.id}')">Modifica</button>${u.id!==SES.uid?`<button class="btn sm sec" onclick="chooseDel('${u.id}')" aria-label="Elimina">🗑</button>`:''}</div></div></div></div>`).join('')}
+function editU(id){const u=id?{...DB.utenti[id]}:{id:uid(),nome:'',cognome:'',cell:'',email:'',username:'',ruolo:'tecnico',attivo:true,creato:Date.now(),privacy:false,via:'',civico:'',citta:'',cap:''};S.edit=u;
+ modal(`<h3>${id?'Modifica utente':'Nuovo utente'}</h3><div class="g2">${inp('uN','Nome',u.nome)}${inp('uC','Cognome',u.cognome)}</div>${inp('uT','Cellulare',u.cell,'tel')}${inp('uE','Email',u.email,'email')}<h4>🏠 Residenza</h4>${inp('uV','Via / piazza',u.via||'')}<div class="g2">${inp('uCv','N. civico',u.civico||'')}${inp('uCp','CAP',u.cap||'','text','inputmode="numeric"')}</div>${inp('uCt','Città',u.citta||'')}
+ <div class="g2">${inp('uU','Nome utente',u.username,'text','autocapitalize="off"')}<label>Ruolo<select id="uR">${Object.entries(RUOLI).map(([k,l])=>`<option value="${k}" ${u.ruolo===k?'selected':''}>${l}</option>`).join('')}</select></label></div>
+ ${inp('uP',id?'Nuova password (lascia vuoto per non cambiarla)':'Password (almeno 6 caratteri)','','password','autocomplete="new-password"')}
+ <label class="chk"><input type="checkbox" id="uA" ${u.attivo!==false?'checked':''}> Utente attivo</label><label class="chk"><input type="checkbox" id="uPr" ${u.privacy?'checked':''}> Informativa privacy consegnata e firmata</label>
+ <div class="btns">${id&&id!==SES.uid?`<button class="btn sec" onclick="chooseDel('${id}')">🗑 Elimina</button>`:''}<button class="btn sec" onclick="closeM()">Annulla</button><button class="btn" onclick="saveU(${!id})">Salva</button></div>`,'utente')}
+function editInd(){const u=me();modal(`<h3>✏️ I miei dati</h3><p class="mu sm">Nome e cognome li modifica il gestore. L'indirizzo serve per stimare la distanza da casa ai servizi.</p>${inp('iT','Cellulare',u.cell||'','tel')}${inp('iE','Email',u.email||'','email')}<h4>🏠 Residenza</h4>${inp('iV','Via / piazza',u.via||'')}<div class="g2">${inp('iN','N. civico',u.civico||'')}${inp('iP','CAP',u.cap||'','text','inputmode="numeric"')}</div>${inp('iC','Città',u.citta||'')}<div class="btns"><button class="btn sec" onclick="closeM()">Annulla</button><button class="btn" onclick="saveInd()">Salva</button></div>`,'ind')}
+async function saveInd(){const u={...me(),cell:val('iT'),email:val('iE'),via:val('iV'),civico:val('iN'),cap:val('iP'),citta:val('iC')};if(!u.via||!u.civico||!u.cap||!u.citta)return toast('Compila via, n. civico, CAP e città');
+ const g=await geo(indir(u));u.homeLat=g?.lat??null;u.homeLng=g?.lng??null;u.updatedAt=Date.now();u.updatedBy=SES.uid;put('utenti',u);logA('Aggiornati i propri dati');closeM();toast(g?'Dati salvati':'Dati salvati, ma indirizzo non localizzato: controllalo');render()}
+function chooseDel(id){const u=DB.utenti[id];if(!u||id===SES.uid)return;
+ modal(`<h3>🗑 Elimina ${esc(u.nome+' '+u.cognome)}</h3><p class="mu sm">Scegli cosa eliminare. In alternativa puoi sospenderlo togliendo la spunta "Utente attivo".</p>
+ <button class="bin y" onclick="confDel('${id}',0)"><b>🗑</b><span><strong>Solo l'utente</strong><br><span class="sm">Non può più accedere. Presenze, storico e statistiche restano.</span></span></button>
+ <button class="bin r" onclick="confDel('${id}',1)"><b>🗑</b><span><strong>Utente, presenze e storico</strong><br><span class="sm">Elimina anche presenze, storico e statistiche. Le firme non vengono eliminate.</span></span></button>
+ <div class="btns"><button class="btn sec" onclick="closeM()">Annulla</button></div>`)}
+function confDel(id,full){const u=DB.utenti[id];if(!full)return delUser(id,'utente');
+ modal(`<h3>⚠ Conferma eliminazione</h3><div class="card" style="border-left:4px solid var(--r)">Stai eliminando <b>${esc(u.nome+' '+u.cognome)}</b> insieme a <b>presenze, storico e statistiche</b>. Le <b>firme non vengono eliminate</b>.<br><br>La scelta è <b>reversibile</b>: dal menu <b>Altro › Cestino</b> puoi ripristinarla. Il Cestino cancella definitivamente la memoria dopo <b>${RET} giorni</b>.</div><div class="btns"><button class="btn sec" onclick="closeM()">Annulla</button><button class="btn" style="background:#8f0c20" onclick="delUser('${id}','storico')">🗑 Conferma eliminazione</button></div>`)}
+function delUser(id,mode){const u=DB.utenti[id],t=Date.now();if(!u||id===SES.uid)return;put('utenti',{...u,deleted:true,delAt:t,delMode:mode});
+ if(mode==='storico'){for(const p of Object.values(DB.presenze))if(p.utenteId===id&&!p.deleted&&!p.escluso)put('presenze',{...p,escluso:true,delCasc:id});for(const r of Object.values(DB.risposte))if(r.utenteId===id&&!r.deleted)put('risposte',{...r,deleted:true,delAt:t,delCasc:id})}
+ logA(`Eliminato utente ${u.nome} ${u.cognome} (${mode==='storico'?'con presenze e storico':'solo utente'})`);closeM();toast('Utente eliminato: lo trovi nel Cestino');render()}
+function delU(id){chooseDel(id)}
+async function saveU(nuovo){const u=S.edit,p=$('#uP').value,pr=$('#uPr').checked,a0=indir(u);Object.assign(u,{via:val('uV'),civico:val('uCv'),cap:val('uCp'),citta:val('uCt'),nome:val('uN'),cognome:val('uC'),cell:val('uT'),email:val('uE'),username:val('uU').toLowerCase(),ruolo:$('#uR').value,attivo:$('#uA').checked});
+ if(pr&&!u.privacy)u.privacyData=Date.now();u.privacy=pr;
+ if(!u.nome||!u.cognome||!u.username)return toast('Nome, cognome e nome utente sono obbligatori');
+ if(live('utenti').some(x=>x.id!==u.id&&x.username===u.username))return toast('Nome utente già in uso');
+ if(nuovo&&!['lettura','cliente'].includes(u.ruolo)&&(!u.via||!u.civico||!u.citta||!u.cap))return toast('Via, n. civico, città e CAP sono obbligatori');
+ if(u.via&&u.citta&&(u.homeLat==null||indir(u)!==a0)){const g=await geo(indir(u));u.homeLat=g?.lat??null;u.homeLng=g?.lng??null;if(!g)toast('Indirizzo non localizzato: la distanza non sarà disponibile')}
+ if((nuovo||p)&&p.length<6)return toast('La password deve avere almeno 6 caratteri');
+ if(u.id===SES.uid&&(u.ruolo!=='admin'||!u.attivo))return toast('Non puoi togliere a te stesso il ruolo di amministratore');
+ let ex;if(p){const pw=await mkPw(p);CREDS[u.id]={...CREDS[u.id],username:u.username,...pw};ex={pw}}else if(CREDS[u.id])CREDS[u.id].username=u.username;LS.s('vp_creds',CREDS);
+ put('utenti',u,ex);logA(`${nuovo?'Creato':'Modificato'} utente ${u.nome} ${u.cognome}${p?' (password impostata)':''}`);closeM();toast('Utente salvato');render()}
+/* ============ ALTRO: PROMEMORIA, STORICO, IMPOSTAZIONI ============ */
+function vAltro(){const n=S.alerts.length,T=(k,i,t,d,f)=>`<button class="tile" onclick="${f||`nav('${k}')`}"><b>${i}</b><span><strong>${t}</strong><br><span class="mu sm">${d}</span></span></button>`;
+ $('#main').innerHTML=isCl()?T('impostazioni','⚙️','Impostazioni','Profilo, tema, notifiche')+T('','ⓘ','Informazioni','Cosa puoi fare con l\'app','info()'):T('promemoria','🔔','Promemoria e scadenze',n?n+' avvisi attivi':'Scadenze e avvisi')+(role()==='admin'?T('richieste','➕','Richieste e chat dei clienti',live('richieste').filter(r=>r.stato==='attesa').length+' richieste in attesa'):'')+T('storico','🗂','Storico azioni','Registro attività e permessi del dispositivo')+(role()==='admin'?T('cestino','🗑','Cestino','Recupera utenti, servizi e promemoria eliminati'):'')+T('impostazioni','⚙️','Impostazioni','Azienda, profilo, tema, sicurezza, backup')+T('','ⓘ','Informazioni','Struttura e funzioni dell\'app','info()')+(S.bip?T('','⬇','Installa app','Aggiungi alla schermata Home','install()'):'')}
+const dests=p=>p.dest==='tutti'?'tutti':Array.isArray(p.dest)?p.dest:[p.dest],perMe=p=>{const d=dests(p);return d==='tutti'||d.includes(SES.uid)},qd=p=>p.quando||new Date(p.scadenza).getTime();
+function checkProm(){if(!SES)return;const now=Date.now(),nt=LS.g('vp_notif',{}),it=[];
+ if(S.pend&&DB.promemoria[S.pend]){const i=S.pend;S.pend=null;apriProm(i)}
+ if(role()==='tecnico')gpsRispondi();
+ if(S.pendGo&&role()!=='lettura'){const g=S.pendGo;S.pendGo=null;go(g)}
+ // avvisi di turno: 30 min prima dell'inizio (se manca il check-in) e 2 h dopo la fine (se manca il check-out), ripetuti dopo 5 minuti
+ for(const r of live('risposte'))if(r.utenteId===SES.uid){const s=DB.servizi[r.servizioId];if(!s||s.deleted)continue;const p=DB.presenze[s.id+'_'+SES.uid],st=new Date(s.data+'T'+s.oraInizio).getTime();
+  for(const n of[0,1]){const a=st-18e5+n*3e5,b=fineS(s)+18e5+n*3e5,ka='ci'+s.id+n,kb='co'+s.id+n;
+   if(r.esito==='si'&&!p?.checkIn&&now>=a&&now-a<6e5&&!nt[ka]){nt[ka]=now;notify('⏱ Servizio tra 30 minuti',`${s.titolo}, ore ${s.oraInizio}. Quando inizia premi Turno e fai il check-in.`,'','ci-'+s.id+'-'+n,'turno')}
+   if(p?.checkIn&&!p.checkOut&&now>=b&&now-b<6e5&&!nt[kb]){nt[kb]=now;notify('⏹ Check-out mancante',`${s.titolo} è terminato. Premi Turno e fai il check-out.`,'','co-'+s.id+'-'+n,'turno')}}}
+ for(const p of live('promemoria'))if(perMe(p)){const sc=qd(p);if(sc-now<864e5&&now-sc<864e5)it.push({k:'p'+p.id+sc,t:p.titolo,b:'Promemoria '+fmtT(sc),nn:1,pid:p.id});
+  for(const n of[0,1]){const t=sc+n*3e5,k='x'+p.id+sc+n;if(now>=t&&now-t<6e5&&!nt[k]){nt[k]=now;notify('🔔 '+p.titolo,p.testo||'Promemoria','' +p.id,'prom-'+p.id+'-'+n)}}}
+ for(const r of live('risposte'))if(r.utenteId===SES.uid&&r.esito==='si'){const s=DB.servizi[r.servizioId];if(!s||s.deleted)continue;const st=new Date(s.data+'T'+s.oraInizio).getTime();if(st>now&&st-now<864e5)it.push({k:'s'+s.id+s.data,t:'Servizio: '+s.titolo,b:`${fmtD(s.data)} ore ${s.oraInizio}, ${s.luogo}`,sid:s.id})}
+ if(!['lettura','cliente'].includes(role()))for(const s of live('servizi'))if(s.data>=ymd(now)&&!DB.risposte[s.id+'_'+SES.uid])it.push({k:'n'+s.id,t:'Nuova richiesta di servizio',b:`${s.titolo}, ${fmtD(s.data)}`,sid:s.id});
+ if(role()==='admin')for(const r of live('richieste'))if(r.stato==='attesa')it.push({k:'rq'+r.id,t:'➕ Richiesta di nuovo evento',b:`${nomeU(r.clienteId)}: ${r.titolo}, ${fmtD(r.data)}`});
+ if(role()==='admin')for(const p of live('presenze'))if(p.auto&&!p.rev&&p.checkOut&&now-p.checkOut.ts<6048e5&&DB.servizi[p.servizioId])it.push({k:'ac'+p.id,t:'⏹ Check-out chiuso in automatico',b:`${nomeU(p.utenteId)}: ${DB.servizi[p.servizioId].titolo}, uscita ${hm(p.checkOut.ts)}. Verifica o correggi da Dettaglio volontari › Presenza.`,sid:p.servizioId});
+ document.querySelector('#nav [data-k=turno]')?.classList.toggle('rd',turnoRosso());if(S.view==='turno')vTurno();
+ S.alerts=it;let c=0;for(const a of it)if(!nt[a.k]){nt[a.k]=now;if(!a.nn&&c++<3)notify(a.t,a.b)}LS.s('vp_notif',nt);$('#bc').textContent=it.length||'';if(S.view==='promemoria')vProm()}
+function vProm(){const adm=role()==='admin',now=Date.now(),L=live('promemoria').filter(p=>adm||perMe(p)).sort((a,b)=>qd(a)-qd(b));
+ let h=`<div class="row">${back}<span style="flex:1"></span>${adm?'<button class="btn sm" onclick="editProm()">+ Promemoria</button>':''}</div><h4>Avvisi delle prossime 24 ore</h4>`+((adm?(S.usoAv||[]).map(a=>`<div class="card" style="border-left:4px solid var(--r)"><b>${esc(a.t)}</b><div class="mu sm">${esc(a.b)}</div></div>`).join(''):'')+S.alerts.map(a=>`<div class="card"><b>${esc(a.t)}</b><div class="mu sm">${esc(a.b)}</div>${a.sid&&DB.servizi[a.sid]?azioniAv(a.sid):''}</div>`).join('')||'<p class="mu sm">Nessun avviso.</p>');
+ h+=`<h4>Promemoria e scadenze</h4>`+(L.map(p=>{const sc=qd(p),d=dests(p);return`<div class="card"><div class="ct"><b>${esc(p.titolo)}</b><span class="badge ${sc<now?'r':''}">${sc<now?'Inviato':fmtT(sc)}</span></div>${p.testo?`<p class="sm">${esc(p.testo)}</p>`:''}<div class="mu sm">Per ${d==='tutti'?'tutti':adm?d.map(nomeU).map(esc).join(', '):d.length+' destinatari'}</div><div class="btns">${role()!=='lettura'?`<button class="btn sm" onclick="apriProm('${p.id}')">💬 Chat</button>`:''}${adm?`<button class="btn sm sec" onclick="editProm('${p.id}')">Modifica</button><button class="btn sm sec" onclick="delProm('${p.id}')">Elimina</button>`:''}</div></div>`}).join('')||'<p class="mu sm">Nessun promemoria.</p>');
+ h+=`<button class="btn sec w" onclick="enableNotif()">🔔 Ricevi anche le notifiche sul dispositivo</button>`;$('#main').innerHTML=h}
+function editProm(id){const p=id?{...DB.promemoria[id]}:{id:uid(),titolo:'',testo:'',scadenza:new Date(Date.now()+36e5-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,16),dest:'tutti'},d=dests(p);S.edit=p;
+ modal(`<h3>Promemoria</h3>${inp('mT','Titolo',p.titolo)}${ta('mX','Testo',p.testo)}${inp('mS','Data e ora della notifica',p.scadenza,'datetime-local')}<p class="mu sm">La notifica parte alla data e all'ora indicate e si ripete una volta dopo 5 minuti. Il promemoria non è legato a nessun evento.</p>
+ <b>Destinatari</b><label class="chk"><input type="checkbox" id="mAll" ${d==='tutti'?'checked':''} onchange="document.querySelectorAll('.mU').forEach(c=>c.disabled=this.checked)"> <b>Tutti</b></label>
+ <div style="max-height:30vh;overflow:auto">${live('utenti').filter(u=>u.attivo!==false&&u.ruolo!=='cliente').sort((a,b)=>(a.cognome+a.nome).localeCompare(b.cognome+b.nome)).map(u=>`<label class="chk"><input type="checkbox" class="mU" value="${u.id}" ${d!=='tutti'&&d.includes(u.id)?'checked':''} ${d==='tutti'?'disabled':''}> ${esc(u.cognome+' '+u.nome)}</label>`).join('')}</div>
+ <div class="btns"><button class="btn sec" onclick="closeM()">Annulla</button><button class="btn" onclick="saveProm()">Salva</button></div>`)}
+function saveProm(){const p=S.edit,all=$('#mAll').checked,sel=[...document.querySelectorAll('.mU:checked')].map(c=>c.value);Object.assign(p,{titolo:val('mT'),testo:val('mX'),scadenza:$('#mS').value,dest:all?'tutti':sel});if(!p.titolo||!p.scadenza)return toast('Titolo e data/ora sono obbligatori');if(!all&&!sel.length)return toast('Scegli almeno un destinatario o spunta Tutti');
+ p.quando=new Date(p.scadenza).getTime();put('promemoria',p);logA('Promemoria salvato: '+p.titolo);closeM();checkProm();render()}
+function delProm(id){if(!confirm('Eliminare il promemoria?'))return;put('promemoria',{...DB.promemoria[id],deleted:true,delAt:Date.now()});logA('Promemoria eliminato');render()}
+const logRows=()=>{const f=S.lf;return live('log').filter(l=>{const d=ymd(l.ts);return d>=f.da&&d<=f.a&&(!f.t||l.tipo===f.t)}).sort((a,b)=>b.ts-a.ts)};
+function vLog(){const f=S.lf||(S.lf={da:ymd(Date.now()-7*864e5),a:ymd(Date.now()),t:''}),L=logRows();
+ $('#main').innerHTML=`<div class="row">${back}</div><div class="card"><div class="g2">${inp('lD','Dal',f.da,'date','onchange="S.lf.da=this.value;render()"')}${inp('lA','Al',f.a,'date','onchange="S.lf.a=this.value;render()"')}</div>
+ <label>Tipo<select onchange="S.lf.t=this.value;render()">${[['','Tutti'],['accesso','Accessi'],['azione','Azioni'],['permesso','Permessi del dispositivo'],['sync','Sincronizzazione']].map(([v,l])=>`<option value="${v}" ${f.t===v?'selected':''}>${l}</option>`).join('')}</select></label>
+ <button class="btn sec w" onclick="guard('export',expCSV)">⬇ Esporta CSV (${L.length} voci)</button></div>`+
+ (L.slice(0,300).map(l=>`<div class="li"><div><div class="sm mu">${fmtT(l.ts)}, ${esc(nomeU(l.utenteId))}</div>${esc(l.azione)}</div>${l.esito?`<span class="badge ${/negat|errore|scartat|non supp/.test(l.esito)?'r':'ok'}">${esc(l.esito)}</span>`:''}</div>`).join('')||'<p class="mu">Nessuna voce nel periodo scelto.</p>')+(L.length>300?'<p class="mu sm">Mostrate le ultime 300 voci: restringi i filtri o esporta il CSV.</p>':'')}
+function expCSV(){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',rows=[['Data','Ora','Utente','Tipo','Azione','Esito'],...logRows().map(l=>{const d=new Date(l.ts);return[d.toLocaleDateString('it-IT'),d.toLocaleTimeString('it-IT'),nomeU(l.utenteId),l.tipo,l.azione,l.esito]})];
+ download(`storico_azioni_${ymd(Date.now())}.csv`,new Blob(['\ufeff'+rows.map(r=>r.map(q).join(';')).join('\r\n')],{type:'text/csv'}));logA('Esportazione CSV dello storico azioni')}
+function vImp(){const c=cfg(),u=me(),adm=role()==='admin',last=LS.g('vp_last',0),np=!('Notification'in window)?'non supportate':Notification.permission==='granted'?'attive':Notification.permission==='denied'?'negate':'da attivare';
+ let h=`<div class="row">${back}</div><div class="card"><h4>Il mio profilo</h4><p><b>${esc(u.nome+' '+u.cognome)}</b>, ${RUOLI[u.ruolo]}<br><span class="mu sm">@${esc(u.username)}${u.cell?', '+esc(u.cell):''}${u.email?', '+esc(u.email):''}</span></p>${!['lettura','cliente'].includes(u.ruolo)?`<p class="sm" style="margin-top:8px">🏠 ${u.via?esc(indir(u)):'<b style="color:var(--r)">indirizzo non ancora indicato</b>'}</p><button class="btn sec w" onclick="editInd()">✏️ Modifica i miei dati e indirizzo</button>`:''}<button class="btn sec w" onclick="cambiaPw()">Cambia password</button></div>`;
+ if(adm)h+=`<div class="card"><h4>Azienda</h4>${inp('cA','Nome azienda',c.azienda)}<label>Logo</label><div class="row" style="margin-top:4px"><img src="${c.logo||LOGO}" alt="Logo" style="width:56px;height:56px;object-fit:contain;background:#fff;border-radius:8px"><input type="file" accept="image/*" id="cL"></div><h4 style="margin-top:12px">📍 Sede associativa</h4>${inp('sV','Via / piazza',c.sede?.via||'')}<div class="g2">${inp('sN','N. civico',c.sede?.civico||'')}${inp('sP','CAP',c.sede?.cap||'','text','inputmode="numeric"')}</div>${inp('sC','Città',c.sede?.citta||'')}<button class="btn sec w" type="button" onclick="sedeGps()">📍 Usa la mia posizione per la sede</button><p id="aSg" class="mu sm">${c.sede?.lat!=null?`Coordinate: ${c.sede.lat}, ${c.sede.lng}`:'Sede non ancora localizzata'}</p><button class="btn w" onclick="guard('sicurezza',saveAz)">Salva dati azienda</button></div>`;
+ h+=`<div class="card"><h4>Aspetto e avvisi</h4><label class="chk"><input type="checkbox" ${theme()==='dark'?'checked':''} onchange="setTheme(this.checked?'dark':'light')"> Tema scuro</label><label class="chk"><input type="checkbox" ${voceOn()?'checked':''} onchange="setVoce(this.checked)"> Voce guida attiva</label><label class="chk"><input type="checkbox" ${LS.g('vp_ban',true)?'checked':''} onchange="LS.s('vp_ban',this.checked);if(!this.checked)$('#gd').classList.remove('on')"> Mostra il banner con il testo della voce</label>
+ <label>Velocità della voce: <b id="vlV">${vel().toFixed(1)}×</b><input type="range" min="0.5" max="1.6" step="0.1" value="${vel()}" oninput="$('#vlV').textContent=(+this.value).toFixed(1)+'×'" onchange="LS.s('vp_vel',+this.value);parla('Questa è la velocità della voce guida.')"><span class="mu sm">Più a sinistra è più lenta, più a destra è più veloce.</span></label>
+ <label>Trasparenza del logo di sfondo: <b id="lgV">${LS.g('vp_logo',4)?LS.g('vp_logo',4)+'%':'nascosto'}</b><input type="range" min="0" max="30" step="1" value="${LS.g('vp_logo',4)}" oninput="LS.s('vp_logo',+this.value);bg();$('#lgV').textContent=this.value>0?this.value+'%':'nascosto'"><span class="mu sm">Valori bassi = logo quasi invisibile; 0 lo nasconde.</span></label><label class="chk"><input type="checkbox" ${suonoOn()?'checked':''} onchange="LS.s('vp_suono',this.checked)"> Suono e vibrazione alle notifiche</label><button class="btn sec w" onclick="enableNotif()">🔔 Notifiche: ${np}</button></div>`;
+ if(u.ruolo==='tecnico')h+=`<div class="card"><h4>📍 Posizione per il cliente</h4><label class="chk"><input type="checkbox" ${u.gpsCliente?'checked':''} onchange="setGpsCl(this.checked)"> Consenti al cliente dell'evento di verificare la mia posizione</label><p class="mu sm">Vale solo tra check-in e check-out e solo quando il cliente la richiede: l'app legge la posizione una volta e la condivide. Le coordinate vengono cancellate poche ore dopo il servizio. Puoi disattivare quando vuoi; ogni richiesta resta nello Storico azioni.</p></div>`;
+ if(adm)h+=`<div class="card"><h4>💬 Chat degli eventi</h4><label class="chk"><input type="checkbox" ${chatOn()?'checked':''} onchange="setChat(this.checked)"> Chat degli eventi attiva</label><p class="mu sm">${BCH}</p></div>`+`<div class="card"><h4>✍️ Firma a fine turno</h4><label class="chk"><input type="checkbox" ${firmaOn()?'checked':''} onchange="setFirma(this.checked)"> Richiedi la firma sullo schermo al check-out</label><p class="mu sm">Se la togli, il volontario chiude il turno senza firmare (restano ora e posizione GPS) e non vengono più raccolte firme. Le firme già salvate restano fino alla scadenza dei 180 giorni.</p></div><div class="card"><h4>🔒 Cifratura dei dati</h4><p class="sm">${S.usage?(S.usage.enc?'<b style="color:var(--ok)">Attiva</b>: dati personali, posizioni, firme, chat e password sono salvati nel cloud cifrati (AES-256).':'<b style="color:var(--r)">Non attiva</b>: i dati nel cloud sono leggibili. Su Netlify aggiungi la variabile <b>DATA_KEY</b> (almeno 16 caratteri casuali) e ripubblica: i dati esistenti vengono cifrati da soli.'):'Si vedrà dopo la prima sincronizzazione con il cloud.'}</p><p class="mu sm">Conserva DATA_KEY in un posto sicuro: senza, i dati cifrati non si possono più leggere. Non cambiarla e non toglierla dopo l'attivazione.</p></div>`+barraUso()+`<div class="card"><h4>🧪 Prove: azzera il cloud</h4><p class="mu sm">Cancella tutti i dati nel cloud (utenti, servizi, presenze, chat, storico) e fa ripartire l'app dalla prima configurazione. Il consumo del server resta. Operazione irreversibile: usala solo per le prove.</p><button class="btn sec w" onclick="azzeraCloud()">🧹 Azzera tutti i dati nel cloud</button></div>`;
+ if(adm)h+=`<div class="card"><h4>Funzioni riservate</h4><p class="mu sm">${c.pinHash?'PIN impostato.':'Nessun PIN impostato.'} Il PIN viene chiesto all'apertura delle funzioni scelte e di nuovo dopo il tempo di inattività.</p>${inp('cP',c.pinHash?'Nuovo PIN (vuoto per non cambiarlo)':'PIN (almeno 4 cifre)','','password','inputmode="numeric" autocomplete="new-password"')}
+ ${Object.entries(RISERV).map(([k,l])=>`<label class="chk"><input type="checkbox" class="rz" value="${k}" ${(c.riservate||[]).includes(k)?'checked':''}> ${l}</label>`).join('')}${inp('cT','Blocco dopo minuti di inattività',c.timeout||5,'number','min="1"')}
+ <button class="btn w" onclick="guard('sicurezza',saveSec)">Salva funzioni riservate</button>${c.pinHash?`<button class="btn sec w" onclick="guard('sicurezza',delPin)">Rimuovi PIN</button>`:''}</div>`;
+ h+=`<div class="card"><h4>Dati e sincronizzazione</h4><p class="sm">Stato: <b>${SES.token?(S.online===false?'cloud non raggiungibile':'collegato al cloud'):'solo su questo dispositivo'}</b><br>Ultima sincronizzazione: ${last?fmtT(last):'mai'}<br>Modifiche in attesa di invio: <b>${Q.length}</b></p>
+ ${SES.token?'<button class="btn sec w" onclick="sync(true).then(render)">⟳ Sincronizza ora</button>':(adm?'<button class="btn w" onclick="collega()">☁ Collega al cloud</button>':'')}
+ <button class="btn sec w" onclick="guard('backup',expJSON)">Esporta backup JSON</button>${adm?`<button class="btn sec w" onclick="guard('backup',()=>$('#fImp').click())">Importa backup JSON</button><input type="file" id="fImp" accept=".json,application/json" hidden onchange="impJSON(this.files[0])">`:''}</div>
+ <p class="mu sm" style="text-align:center">${esc(c.azienda)}<br>Vigilanza Privata, versione ${VER}</p>`;$('#main').innerHTML=h}
+const resizeImg=(f,m)=>new Promise(res=>{const i=new Image();i.onload=()=>{const k=Math.min(1,m/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*k;c.height=i.height*k;c.getContext('2d').drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(i.src);res(c.toDataURL('image/png'))};i.onerror=()=>res(null);i.src=URL.createObjectURL(f)});
+async function saveAz(){const c={...cfg()},f=$('#cL').files[0];c.azienda=val('cA')||c.azienda;
+ const sd={via:val('sV'),civico:val('sN'),cap:val('sP'),citta:val('sC')},cam=indir(sd)!==indir(c.sede||{});
+ if(S.sedeGps){c.sede={...sd,...S.sedeGps};S.sedeGps=null;S.gpsLog&&logA('Accesso GPS (sede associativa)','permesso',S.gpsLog)}else if(sd.via&&sd.citta&&(cam||c.sede?.lat==null)){const g=await geo(indir(sd));if(!g)return toast('Indirizzo della sede non trovato');c.sede={...sd,...g}}if(f)c.logo=await resizeImg(f,256)||c.logo;put('impostazioni',c);logA('Aggiornati dati azienda');toast('Dati azienda salvati');render()}
+async function saveSec(){const c={...cfg()},p=$('#cP').value.trim();if(p){if(p.length<4)return toast('Il PIN deve avere almeno 4 caratteri');const pw=await mkPw(p);c.pinSalt=pw.salt;c.pinHash=pw.hash}
+ c.riservate=[...document.querySelectorAll('.rz:checked')].map(x=>x.value);c.timeout=Math.max(1,+val('cT')||5);if(c.riservate.length&&!c.pinHash)return toast('Imposta prima un PIN');
+ put('impostazioni',c);S.pinOk=true;logA('Aggiornate le funzioni riservate');toast('Impostazioni di sicurezza salvate');render()}
+function delPin(){put('impostazioni',{...cfg(),pinHash:null,pinSalt:null,riservate:[]});logA('PIN rimosso');toast('PIN rimosso');render()}
+function cambiaPw(){modal(`<h3>Cambia password</h3>${inp('p1','Nuova password','','password','autocomplete="new-password"')}${inp('p2','Ripeti la nuova password','','password','autocomplete="new-password"')}<div class="btns"><button class="btn sec" onclick="closeM()">Annulla</button><button class="btn" onclick="savePw()">Salva password</button></div>`)}
+async function savePw(){const a=$('#p1').value;if(a.length<6)return toast('Almeno 6 caratteri');if(a!==$('#p2').value)return toast('Le due password non coincidono');
+ const pw=await mkPw(a),u={...me()};CREDS[u.id]={...CREDS[u.id],username:u.username,...pw};LS.s('vp_creds',CREDS);put('utenti',u,{pw});logA('Password modificata','accesso','ok');closeM();toast('Password aggiornata')}
+function expJSON(){download(`vigilanza_backup_${ymd(Date.now())}.json`,new Blob([JSON.stringify({app:'Vigilanza Privata',ver:VER,esportato:new Date().toISOString(),data:DB})],{type:'application/json'}));logA('Esportato backup JSON')}
+async function impJSON(f){if(!f)return;try{const j=JSON.parse(await f.text()),d=j.data||j;let n=0;
+ for(const c of COLS)for(const r of Object.values(d[c]||{})){const l=DB[c][r?.id];if(r?.id&&(!l||(r.updatedAt||0)>(l.updatedAt||0))){DB[c][r.id]=r;const i=Q.findIndex(q=>q.col===c&&q.rec.id===r.id);i>=0?Q[i]={col:c,rec:r}:Q.push({col:c,rec:r});n++}}
+ saveDB();LS.s('vp_queue',Q);logA(`Importato backup JSON: ${n} record aggiornati`);toast(`Importati ${n} record`);schedSync();render()}catch{toast('File di backup non valido')}}
+function install(){if(!S.bip)return;S.bip.prompt();S.bip.userChoice.then(c=>logA('Installazione app: '+(c.outcome==='accepted'?'accettata':'annullata')));S.bip=null;render()}
+/* ============ INFORMAZIONI ============ */
+function info(){modal(`<div class="info"><h3>ⓘ Vigilanza Privata</h3><p class="mu sm">Versione ${VER}</p>
+<p>L'app gestisce le <b>richieste di servizio</b> ai volontari, raccoglie le <b>disponibilità</b> e registra le <b>presenze reali</b>. Il coordinatore vede chi ha dato servizio, dove, quando e per quante ore; ogni volontario ha lo storico delle proprie disponibilità e dei servizi svolti.</p>
+<h4>Schermate</h4><ul>
+<li><b>Servizi</b>: il coordinatore crea le richieste (evento, luogo, data, orario, volontari necessari). Ogni volontario risponde Disponibile o Non disponibile, anche a voce con 🎤. La risposta viene salvata con data e ora. Il Dettaglio volontari mostra chi ha accettato, chi ha rifiutato e chi non ha risposto, permette di confermare la presenza e apre <b>Firme e posizioni</b>: firma ingrandita, <b>indirizzo</b> di entrata e uscita con link alla mappa, km percorsi e PDF da scaricare.</li>
+<li><b>Turno</b>: nel giorno del servizio il volontario fa check-in e check-out. All'entrata e all'uscita l'app ti avvisa se non sei a casa, al ritrovo o al luogo del servizio e salva l'<b>indirizzo con civico e paese</b> (non latitudine e longitudine) e i <b>km percorsi</b>; a fine turno si firma sullo schermo. Sotto trovi il tuo storico, le tue ore di volontariato e, al traguardo delle 30 ore, lo stendardo di ringraziamento 🏅.</li>
+<li><b>Statistiche</b>: presenze, ore, assenze dopo il sì e tasso di risposta nel periodo scelto, con grafici, km percorsi, tabella di affidabilità (con le ore totali di ogni volontario), esportazione Excel e <b>Archivio firme</b> catalogato per evento (anno, mese, evento) con PDF.</li>
+<li><b>Calendario ricorrenze</b> (Statistiche, solo gestore): i servizi raggruppati per <b>comune, mese e settimana del mese</b>; se lo stesso evento torna ogni anno nello stesso periodo l'app propone la data dell'anno dopo (stesso giorno della settimana) e la esporta in Excel. Il comune si ricava dal luogo o lo scrivi nel servizio.</li>
+<li><b>Volontari</b> (solo amministratore): anagrafica con indirizzo di casa, ruolo, password, sospensione, <b>eliminazione</b> con il tasto 🗑: una seconda schermata offre il cestino giallo (solo l'utente: non accede più, presenze e storico restano) o rosso (anche presenze, storico e statistiche, mai le firme), e l'informativa privacy.</li>
+<li><b>Altro</b>: Promemoria e scadenze, Storico azioni, Impostazioni, Informazioni.</li></ul>
+<h4>Ruoli</h4><ul><li><b>Amministratore</b>: tutte le funzioni, compresa la conferma delle presenze.</li><li><b>Tecnico (volontario)</b>: risponde alle richieste, fa check-in e check-out, vede solo i propri dati.</li><li><b>Sola lettura</b>: consulta servizi, statistiche e storico.</li></ul>
+<h4>Lavoro senza connessione</h4><p>Ogni operazione viene salvata subito sul dispositivo e messa in coda. Al ritorno della rete parte da sola verso il cloud. Il pallino in alto indica lo stato: verde sincronizzato, rosso offline, giallo in corso, grigio solo locale. Se due dispositivi modificano lo stesso dato vince l'ultima modifica, e lo scarto viene annotato nello Storico azioni.</p>
+<h4>Ruolo Cliente (chi richiede l'evento)</h4><p>Il gestore crea un utente con ruolo <b>Cliente</b> e lo sceglie nel servizio (campo Cliente). Il cliente vede <b>solo i propri eventi</b> e lo storico per anno. Dal <b>check-in</b> vede nome e cognome dei volontari in servizio e può <b>chiamarli</b>; non vede indirizzi, ore né chi ha rifiutato. Con <b>Verifica presenza (GPS)</b> chiede la posizione ai volontari in turno: la vede su mappa solo di chi ha attivato in Impostazioni «Consenti al cliente di verificare la mia posizione» (a scelta del volontario, solo tra check-in e check-out; le coordinate sono cancellate poche ore dopo). Può usare la <b>chat di gruppo</b> con i volontari dal momento del primo check-in e la <b>chat con il gestore</b> sempre, e <b>richiedere un nuovo evento</b>: il gestore la approva (nasce il servizio già assegnato) o la rifiuta con un motivo, da Altro › Richieste e chat dei clienti.</p><h4>Turno: avvisi, check-in e chiusura automatica</h4><p>Dal giorno dell'evento, dopo il tuo <b>Disponibile</b>, il pulsante <b>Turno</b> diventa <b>rosso</b> finché non fai il check-out. Il <b>check-in</b> si attiva <b>30 minuti prima dell'inizio</b>, con un conto alla rovescia in minuti. Con le notifiche attive ricevi un avviso 30 minuti prima dell'inizio se non hai fatto il check-in e <b>30 minuti dopo la fine</b> se hai dimenticato il check-out (ripetuti dopo 5 minuti; toccandoli si apre Turno). Se dimentichi il check-out, <b>2 ore dopo la fine</b> il turno si chiude da solo all'ora di fine evento e le ore vengono registrate; gli <b>amministratori ricevono un avviso</b> e possono correggere l'orario da Dettaglio volontari › Presenza (anche dopo il blocco, per 30 giorni). Le ore sono calcolate dall'ora reale di check-in e check-out. Se il gestore cambia il tuo ruolo, l'app scarica di nuovo tutti i dati.</p><h4>Sfondo e voce guida</h4><p>Il logo inserito dal gestore in Impostazioni resta sullo sfondo in semitrasparenza: in Impostazioni › Aspetto e avvisi scegli quanto è visibile (o lo nascondi). La <b>voce guida</b> (🔊 in alto, oppure Impostazioni) dice cosa fare a ogni schermata e a ogni finestra; con <b>Salta guida</b> la interrompi. Dopo <b>Disponibile</b> ti invita a premere <b>Turno</b> all'ora d'inizio per il check-in, e dopo il check-in ti ricorda il <b>check-out</b> a fine evento o se vai via prima. Si attiva e si disattiva in qualsiasi momento; sempre in Impostazioni scegli la velocità della voce e se mostrare o nascondere il banner con il testo.</p><h4>Avvisi</h4><p>La campanella segnala nuove richieste senza risposta, i tuoi servizi delle prossime 24 ore e i promemoria. Se attivi le notifiche, arrivano anche sul dispositivo.</p><h4>Promemoria e notifiche push</h4><p>Il gestore crea un <b>promemoria</b> (titolo, testo, data e ora) non legato ad alcun evento e lo invia a <b>tutti</b> o ai volontari che <b>spunta</b>. La notifica arriva <b>solo alla data e all'ora esatte</b> e si ripete <b>una volta dopo 5 minuti</b>, anche con l'app chiusa (notifica push: serve aver dato il permesso notifiche; su iPhone l'app va prima aggiunta alla schermata Home, iOS 16.4 o successivo). Toccando la notifica si apre una <b>chat del promemoria</b>: il volontario scrive e sceglie <b>📨 Al gestore</b> oppure <b>👥 A tutti i destinatari</b>; il gestore risponde a tutti o a uno solo. La chat dura 7 giorni dall'ora del promemoria e si aggiorna al massimo ogni 30 secondi.</p><h4>Servizi passati e Cestino</h4><p>Sei ore dopo la fine, il servizio mostra un 🔒: nessuno (volontari e gestore) può più modificare risposte, presenze, firme e dati del servizio; il gestore può solo cestinarlo. Elementi eliminati vanno nel <b>Cestino</b> (Altro, solo gestore) da cui si ripristinano; dopo <b>180 giorni</b> vengono cancellati in modo definitivo e per gli utenti resta solo il nome per lo storico.</p>
+<h4>Permessi del dispositivo</h4><p>All'accesso l'app chiede il permesso del <b>microfono</b>; GPS e notifiche vengono chiesti solo quando servono. Se li neghi l'app continua a funzionare con l'inserimento manuale. Ogni richiesta, concessa o negata, finisce nello Storico azioni.</p>
+<h4>Sicurezza e privacy</h4><p>Le password non vengono mai salvate in chiaro (PBKDF2 SHA-256 con sale). L'amministratore può proteggere con PIN le funzioni riservate. La posizione viene rilevata solo a inizio e fine turno, mai in modo continuo, e si salva come indirizzo. Per l'indirizzo e i km l'app interroga i servizi gratuiti OpenStreetMap (Nominatim) e OSRM, a cui arrivano le coordinate necessarie al calcolo. Firme e indirizzi di entrata e uscita sono conservate <b>180 giorni</b> e poi cancellate automaticamente; presenze e ore restano per le statistiche. I dati personali vanno trattati secondo l'informativa consegnata ai volontari.</p>
+<h4>Sede e indirizzi</h4><p>Alla prima configurazione il gestore dichiara la <b>sede associativa</b> (via, civico, CAP, città o posizione GPS). Ogni volontario ha il proprio indirizzo di casa (via, n. civico, città, CAP): lo inserisce il gestore oppure lo completa o modifica l'utente stesso da Impostazioni › Il mio profilo › Modifica i miei dati e indirizzo (insieme a cellulare ed email; l'app lo segnala finché l'indirizzo manca). Nome, cognome, ruolo e nome utente li cambia solo il gestore. Gli indirizzi vengono localizzati con OpenStreetMap, senza chiavi né costi. Per ogni servizio il gestore indica il <b>luogo del servizio</b> e il <b>luogo di ritrovo in sede</b>.</p>
+<h4>Distanza e navigatore</h4><p>Ai check-in e check-out l'app calcola i <b>km su strada reali</b> da casa, dal ritrovo e dal luogo del servizio (se il servizio non risponde usa una stima, segnalata) e li porta nel report Excel. Dalle notifiche e dalle schede dei servizi il pulsante <b>📏 Distanza da casa</b> mostra una stima (km e minuti) dal tuo indirizzo. Dopo aver accettato un servizio compaiono <b>🧭 Sede di Ritrovo</b> e <b>🧭 Luogo del Servizio</b>, che aprono il navigatore del telefono (Google Maps o Apple Mappe).</p>
+<h4>Chat dell'evento</h4><p>Dal servizio, con 💬 Chat evento, chi ha accettato e il gestore si scrivono. La chat si aggiorna <b>al massimo ogni 30 secondi</b> e si azzera 48 ore dopo la fine dell'evento. Il gestore può attivarla o disattivarla in Impostazioni. <b>Se ne consiglia l'uso solo con un server proprietario o un piano di abbondanti crediti</b>, per non consumare quelli gratuiti.</p>
+<h4>Microfono e schermo</h4><p>Il microfono si ferma con un tocco; i campi di testo non ingrandiscono più lo schermo sugli smartphone.</p><h4>Suono e vibrazione</h4><p>Alle notifiche l'app emette un suono breve e fa vibrare il dispositivo, se disponibili; si disattivano in Impostazioni.</p>
+<h4>Consumo del server</h4><p>Il gestore vede una barra con i crediti mensili usati (limite 300, poi il sito si ferma). Riceve un avviso a 100, 200 e 250 con la stima di quanto si può ancora usare l'app, oppure di passare a un piano a pagamento o a un altro server. È una stima: pubblicazioni e traffico del sito non sono misurati.</p>
+<h4>Schermi e pulsanti</h4><p>Ogni pulsante ha icona e testo e cambia colore quando lo premi; il menu in basso ha pulsanti più alti. Nelle richieste di servizio il pulsante Disponibile (verde) o Non disponibile (rosso) si colora solo dopo la tua scelta. Il <b>tema chiaro o scuro</b> si sceglie in Impostazioni.</p>
+<h4>Firma e cifratura</h4><p>In Impostazioni il gestore sceglie se richiedere la <b>firma</b> a fine turno. Con la variabile <b>DATA_KEY</b> su Netlify i dati nel cloud (anagrafica, indirizzi, GPS, firme, chat) e le impronte delle password sono <b>cifrati</b> (AES-256); Impostazioni mostra se la cifratura è attiva. Conserva la chiave: senza non si leggono più i dati.</p><h4>Prove e azzeramento</h4><p>Il cloud conserva i dati anche quando ripubblichi il sito. Per ripartire da zero: il gestore usa <b>Impostazioni › Azzera tutti i dati nel cloud</b> (chiede password e conferma), oppure su Netlify imposta la variabile <b>RESET_ON_DEPLOY=true</b> per azzerare a ogni nuova pubblicazione (da togliere quando l'app va in uso reale).</p>
+<p>Per tenere i volontari e cambiare solo l'amministratore: il gestore può promuovere un altro utente ad <b>Amministratore</b> da Volontari › Modifica; oppure su Netlify imposta <b>RESET_ADMIN_ON_DEPLOY=true</b> (a ogni pubblicazione l'amministratore viene sospeso e, dalla schermata di accesso, "Reimposta amministratore" ne crea uno nuovo con lo stesso nome utente o un altro; utenti, servizi e presenze restano).</p>
+<h4>Sviluppatore</h4>${pubBlock(1)}
+<h4>Esportazioni</h4><p>Excel con riepilogo volontari (ore e km totali), dettaglio presenze con indirizzo di entrata e uscita e km, e servizi; PDF di firme e posizioni; CSV dello Storico azioni; backup JSON completo da Impostazioni.</p>
+<div class="btns"><button class="btn" onclick="closeM()">Chiudi</button></div></div>`)}
+/* ============ RUOLO CLIENTE (chi richiede l'evento) ============ */
+const isCl=()=>role()==='cliente',clienti=()=>live('utenti').filter(u=>u.ruolo==='cliente'&&u.attivo!==false),EQ=sid=>DB.equipaggio['eq_'+sid]||{disp:0,crew:[]},ST_R={attesa:'In attesa',approvata:'Approvata',rifiutata:'Rifiutata',annullata:'Annullata'};
+function vCliente(){const t=ymd(Date.now()),L=live('servizi').filter(s=>s.clienteId===SES.uid),pr=L.filter(s=>s.data>=t).sort(byDate),pa=L.filter(s=>s.data<t).sort((a,b)=>byDate(b,a)),ys=[...new Set(pa.map(s=>s.data.slice(0,4)))];
+ $('#main').innerHTML=`<div class="row"><button class="btn" style="flex:1" onclick="richEvento()">➕ Richiedi un nuovo evento</button><button class="btn sec" onclick="clChat(SES.uid)">💬 Gestore</button></div><h4>I tuoi eventi in programma</h4>`+(pr.map(cardCl).join('')||'<p class="mu sm">Nessun evento in programma.</p>')
+ +`<h4>Storico degli eventi</h4>`+(ys.map(y=>{const l=pa.filter(s=>s.data.startsWith(y));return`<h4 style="margin-top:12px">${y} <span class="mu sm">(${l.length} ${l.length===1?'evento':'eventi'})</span></h4>`+l.map(cardCl).join('')}).join('')||'<p class="mu sm">Ancora nessun evento concluso.</p>')}
+function cardCl(s){const e=EQ(s.id),inS=e.crew.filter(c=>!c.co),past=s.data<ymd(Date.now()),att=e.crew.length>0&&Date.now()<fineS(s)+6*36e5;
+ return`<div class="card"><div class="ct"><b>${esc(s.titolo)}</b><span class="badge ${inS.length?'ok':''}">${inS.length?'In corso':past?'Concluso':'Programmato'}</span></div><div class="mu sm">📅 ${fmtD(s.data)}, ore ${s.oraInizio}–${s.oraFine}<br>📍 ${esc(s.luogo)}</div>${s.note?`<p class="sm">${esc(s.note)}</p>`:''}`
+ +(e.crew.length?`<h4 style="margin-top:8px">Volontari in servizio</h4>`+e.crew.map(c=>`<div class="li"><div><b>${esc(c.cognome+' '+c.nome)}</b><div class="mu sm">dalle ${hm(c.ci)}${c.co?', uscito alle '+hm(c.co):''}</div></div>${c.cell?`<a class="btn sm" href="tel:${esc(c.cell)}">📞 Chiama</a>`:''}</div>`).join(''):!past?`<p class="mu sm">👥 ${e.disp} ${e.disp===1?'volontario disponibile':'volontari disponibili'}. Nomi e telefoni compaiono dal check-in.</p>`:'')
+ +(att?`<div class="btns"><button class="btn" onclick="verGps('${s.id}')">📍 Verifica presenza (GPS)</button><button class="btn sec" onclick="openChat('${s.id}')">💬 Chat volontari</button></div>`:'')+'</div>'}
+function verGps(sid){if(live('gps').some(x=>x.servizioId===sid&&Date.now()-x.ts<9e4))toast('Richiesta già inviata: attendi un minuto');else{put('gps',{id:uid(),servizioId:sid,clienteId:SES.uid,ts:Date.now()});logA('Verifica GPS richiesta: '+DB.servizi[sid].titolo);toast('Richiesta inviata ai volontari in turno')}mappa(sid)}
+const loadLeaflet=()=>new Promise((ok,ko)=>{if(window.L)return ok();const l=document.createElement('link');l.rel='stylesheet';l.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';document.head.append(l);const j=document.createElement('script');j.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';j.onload=ok;j.onerror=ko;document.head.append(j)});
+function mappa(sid){S.mapSid=sid;const s=DB.servizi[sid];modal(`<h3>📍 Presenza dei volontari</h3><p class="mu sm">${esc(s.titolo)}. Vedi solo i volontari che hanno attivato la condivisione. La posizione si aggiorna quando il volontario risponde alla richiesta, di solito entro un minuto se ha l'app aperta.</p><div id="mp" style="height:260px;border-radius:10px;background:var(--bg)"></div><div id="mpL"></div><div class="btns"><button class="btn sec" onclick="verGps('${sid}')">⟳ Richiedi di nuovo</button><button class="btn" onclick="S.mapSid=null;closeM()">Chiudi</button></div>`);mappaRefresh()}
+async function mappaRefresh(){if(!S.mapSid||!$('#mpL'))return;const s=DB.servizi[S.mapSid],c=EQ(s.id).crew.filter(x=>!x.co);
+ $('#mpL').innerHTML=c.map(x=>`<div class="li"><span><b>${esc(x.cognome+' '+x.nome)}</b><br><span class="mu sm">${x.pos?'📍 posizione delle '+hm(x.pos.ts):x.cons?'in attesa della posizione…':'condivisione della posizione non attiva'}</span></span>${x.pos?`<a class="btn sm sec" href="https://www.openstreetmap.org/?mlat=${x.pos.lat}&mlon=${x.pos.lng}#map=17/${x.pos.lat}/${x.pos.lng}" target="_blank" rel="noopener">Apri mappa</a>`:''}</div>`).join('')||'<p class="mu sm">Nessun volontario in servizio.</p>';
+ try{await loadLeaflet();const el=$('#mp');if(!el)return;if(S.lm&&S.lm._container!==el){S.lm.remove();S.lm=null}
+  if(!S.lm){S.lm=L.map(el);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(S.lm);S.lg=L.layerGroup().addTo(S.lm)}
+  S.lg.clearLayers();const pts=[];if(s.lat!=null){pts.push([s.lat,s.lng]);L.circleMarker([s.lat,s.lng],{radius:9,color:'#3a3f45',fillOpacity:.5}).bindTooltip('Evento').addTo(S.lg)}
+  for(const x of c)if(x.pos){pts.push([x.pos.lat,x.pos.lng]);L.circleMarker([x.pos.lat,x.pos.lng],{radius:8,color:'#c8102e',fillColor:'#c8102e',fillOpacity:.8}).bindTooltip(x.nome+' '+x.cognome,{permanent:true}).addTo(S.lg)}
+  pts.length?S.lm.fitBounds(pts,{padding:[30,30],maxZoom:17}):S.lm.setView([45.5,9.2],8)}catch{const el=$('#mp');el&&(el.innerHTML='<p class="mu sm" style="padding:10px">Mappa non disponibile (serve la connessione): usa «Apri mappa».</p>')}}
+function richEvento(){modal(`<h3>➕ Richiedi un nuovo evento</h3>${inp('qT','Manifestazione o evento','')}${inp('qL','Luogo (via e comune)','')}<div class="g2">${inp('qD','Data',ymd(Date.now()+7*864e5),'date')}${inp('qP','Volontari richiesti',4,'number','min="1"')}${inp('qI','Inizio','08:00','time')}${inp('qF','Fine','14:00','time')}</div>${ta('qN','Note per il gestore','')}<p class="mu sm">La richiesta arriva al gestore, che la approva o ti scrive il motivo del rifiuto.</p><div class="btns"><button class="btn sec" onclick="closeM()">Annulla</button><button class="btn" onclick="saveRich()">Invia richiesta</button></div>`,'serv')}
+function saveRich(){const r={id:uid(),clienteId:SES.uid,titolo:val('qT'),luogo:val('qL'),data:$('#qD').value,oraInizio:$('#qI').value,oraFine:$('#qF').value,posti:Math.max(1,+$('#qP').value||1),note:val('qN'),stato:'attesa',creata:Date.now()};if(!r.titolo||!r.luogo||!r.data||!r.oraInizio||!r.oraFine)return toast('Compila evento, luogo, data e orari');put('richieste',r);logA('Richiesta di nuovo evento: '+r.titolo);closeM();toast('Richiesta inviata al gestore');render()}
+function annRich(id){if(!confirm('Annullare la richiesta?'))return;put('richieste',{...DB.richieste[id],stato:'annullata'});render()}
+function vRichCl(){const L=live('richieste').filter(r=>r.clienteId===SES.uid).sort((a,b)=>(b.creata||0)-(a.creata||0));
+ $('#main').innerHTML=`<div class="row"><button class="btn" style="flex:1" onclick="richEvento()">➕ Richiedi un nuovo evento</button><button class="btn sec" onclick="clChat(SES.uid)">💬 Gestore</button></div><h4>Le tue richieste</h4>`+(L.map(r=>cardRq(r,0)).join('')||'<p class="mu sm">Nessuna richiesta.</p>')}
+const cardRq=(r,ad)=>`<div class="card"><div class="ct"><b>${esc(r.titolo)}</b><span class="badge ${r.stato==='attesa'?'r':r.stato==='approvata'?'ok':''}">${ST_R[r.stato]||r.stato}</span></div><div class="mu sm">${ad?`👤 ${esc(nomeU(r.clienteId))}<br>`:''}📅 ${fmtD(r.data)}, ore ${r.oraInizio}–${r.oraFine}, ${r.posti} volontari<br>📍 ${esc(r.luogo)}</div>${r.note?`<p class="sm">${esc(r.note)}</p>`:''}${r.nota?`<p class="sm"><i>Risposta del gestore: ${esc(r.nota)}</i></p>`:''}${r.stato==='attesa'?`<div class="btns">${ad?`<button class="btn" onclick="rqOk('${r.id}')">Approva e crea il servizio</button><button class="btn sec" onclick="rqNo('${r.id}')">Rifiuta</button>`:`<button class="btn sec" onclick="annRich('${r.id}')">Annulla richiesta</button>`}</div>`:''}</div>`;
+function vRichAd(){const L=live('richieste').sort((a,b)=>(b.creata||0)-(a.creata||0)),n=L.filter(r=>r.stato==='attesa').length;
+ $('#main').innerHTML=`<div class="row">${back}</div><h4>Richieste di nuovi eventi (${n} in attesa)</h4>`+(L.map(r=>cardRq(r,1)).join('')||'<p class="mu sm">Nessuna richiesta.</p>')+`<h4>Chat con i clienti</h4>`+(clienti().map(u=>{const m=live('chat').filter(x=>x.cl===u.id).sort((a,b)=>b.ts-a.ts)[0];return`<div class="li"><span><b>${esc(nomeU(u.id))}</b><br><span class="mu sm">${m?esc(m.testo.slice(0,50))+' · '+fmtT(m.ts):'Nessun messaggio'}</span></span><button class="btn sm" onclick="clChat('${u.id}')">💬 Chat</button></div>`}).join('')||'<p class="mu sm">Nessun cliente: crea un utente con ruolo Cliente da Volontari.</p>')}
+function rqOk(id){const r=DB.richieste[id];S.rq=id;editServ(null,{titolo:r.titolo,luogo:r.luogo,data:r.data,oraInizio:r.oraInizio,oraFine:r.oraFine,posti:r.posti,note:r.note,clienteId:r.clienteId});S.rq=id}
+function rqNo(id){const n=prompt('Motivo del rifiuto (facoltativo, il cliente lo leggerà)');if(n===null)return;put('richieste',{...DB.richieste[id],stato:'rifiutata',nota:n});logA('Richiesta evento rifiutata');render()}
+function clChat(cl){S.chat={cl,sent:0};const adm=role()==='admin';modal(`<h3>💬 ${adm?esc(nomeU(cl)):'Chat con il gestore'}</h3><p class="mu sm">${adm?'Conversazione con il cliente.':'Scrivi al gestore: ti risponde appena può. La chat è sempre attiva.'}</p><div id="cm" class="chat"></div><div class="row" style="margin:8px 0 0"><input id="cT" placeholder="Scrivi un messaggio" maxlength="500" autocomplete="off"><button class="btn" id="cS">Invia</button></div><div class="btns"><button class="btn sec" onclick="closeM()">Chiudi</button></div>`,'chat');chatRefresh();$('#cm').scrollTop=1e9;$('#cS').onclick=clSend;$('#cT').onkeydown=e=>{if(e.key==='Enter')clSend()}}
+function clSend(){const i=$('#cT'),t=i.value.trim();if(!t||!S.chat?.cl)return;put('chat',{id:uid(),cl:S.chat.cl,utenteId:SES.uid,nome:nomeU(SES.uid),testo:t.slice(0,500),ts:Date.now()});i.value='';chatRefresh();$('#cm').scrollTop=1e9;toast('Messaggio in coda: parte entro 30 secondi')}
+async function gpsRispondi(){if(role()!=='tecnico'||S.gpsB||!me()?.gpsCliente)return;const a=LS.g('vp_gpsans',{});
+ for(const g of live('gps')){const p=DB.presenze[g.servizioId+'_'+SES.uid];if(!p?.checkIn||p.checkOut||Date.now()-g.ts>6e5||a[g.id])continue;a[g.id]=1;LS.s('vp_gpsans',Object.fromEntries(Object.entries(a).slice(-30)));S.gpsB=1;const pos=await gps();S.gpsB=0;
+  if(pos.lat!=null){put('posizioni',{id:g.servizioId+'_'+SES.uid,servizioId:g.servizioId,utenteId:SES.uid,lat:pos.lat,lng:pos.lng,acc:pos.acc,ts:Date.now()});logA('Posizione condivisa con il cliente: '+(DB.servizi[g.servizioId]?.titolo||''),'permesso','concesso');schedSync()}else logA('Posizione richiesta dal cliente non rilevata','permesso','non rilevata')}}
+function setGpsCl(on){put('utenti',{...me(),gpsCliente:on});logA('Consenso alla verifica della posizione da parte del cliente: '+(on?'attivato':'disattivato'),'permesso',on?'concesso':'revocato');toast(on?'Consenso attivato: il cliente potrà richiedere la tua posizione durante il servizio':'Consenso disattivato');render()}
+const VIEWS={richieste:()=>isCl()?vRichCl():vRichAd(),ricorr:vRicorr,archivio:vArch,cestino:vCestino,servizi:vServizi,turno:vTurno,stats:vStats,volontari:vVol,altro:vAltro,storico:vLog,promemoria:vProm,impostazioni:vImp};
+/* ============ AVVIO ============ */
+async function boot(){if(SES&&DB.utenti[SES.uid]){startApp();return sync()}
+ let st=null;try{st=await api({action:'status'})}catch{}S.needAdmin=!!st?.needAdmin;
+ if(st?.setup&&LS.g('vp_last',0))return resetLocale();
+ st?.setup||(!st&&!Object.keys(CREDS).length)?authView('setup',!!st):authView('login')}
+document.documentElement.dataset.theme=theme();
+addEventListener('pointerdown',()=>{const n=Date.now();S.idle=n-S.lastAct;S.lastAct=n},true);
+addEventListener('online',()=>{toast('Connessione ripristinata: invio dei dati in coda');sync()});addEventListener('offline',()=>{S.online=false;dot()});
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();S.bip=e});
+if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js').catch(()=>{});navigator.serviceWorker.addEventListener('message',e=>{if(e.data?.prom)apriProm(e.data.prom);if(e.data?.go)go(e.data.go)});const q=new URLSearchParams(location.search).get('prom');if(q){S.pend=q;history.replaceState(null,'',location.pathname)}const g=new URLSearchParams(location.search).get('go');if(['turno','servizi','richieste'].includes(g)){S.pendGo=g;history.replaceState(null,'',location.pathname)}}
+boot();
+</script>
+</body></html>

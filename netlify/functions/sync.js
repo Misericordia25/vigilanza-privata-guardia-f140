@@ -1,0 +1,522 @@
+/* Vigilanza Privata: funzione server (Netlify Functions + Netlify Blobs)
+   Endpoint: /.netlify/functions/sync   Azioni: status, setup, login, sync
+   Variabile d'ambiente obbligatoria: APP_SECRET (almeno 16 caratteri, casuale) */
+import { getStore } from '@netlify/blobs';
+import crypto from 'node:crypto';
+
+const COLS = ['utenti', 'servizi', 'risposte', 'presenze', 'promemoria', 'log', 'impostazioni', 'chat', 'richieste', 'gps', 'posizioni'];
+const RUOLI = ['admin', 'tecnico', 'lettura', 'cliente'];
+const RET = 180, DAY = 864e5, OVR = 1e7, PAGE = 3.5e6, MAX_REC = 6e5, MAX_FIRMA = 4e5, TOKEN_GG = 30;
+// "seq" = millisecondi*1000 + contatore: unico per record, ordina le modifiche e permette la paginazione
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let lastBytes = 0;
+const J = (o, st = 200) => new Response((t => (lastBytes = t.length, t))(JSON.stringify(o)), { status: st, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
+const E = (err, st = 400) => J({ err }, st);
+const hex = (s, n) => typeof s === 'string' && s.length === n && /^[0-9a-f]+$/i.test(s);
+const okPw = p => !!p && hex(p.salt, 32) && hex(p.hash, 64);
+const st = () => getStore({ name: 'vp', consistency: 'strong' });
+/* ---------- Cifratura dei dati a riposo: AES-256-GCM con la chiave DATA_KEY (variabile d'ambiente, almeno 16 caratteri). Senza DATA_KEY i dati restano in chiaro ---------- */
+const DK = () => { const k = process.env.DATA_KEY; return k && k.length >= 16 ? crypto.createHash('sha256').update('vp-enc:' + k).digest() : null };
+const encOn = () => !!DK();
+const enc = (key, obj) => {
+  const k = DK(); if (!k) return obj; const iv = crypto.randomBytes(12), c = crypto.createCipheriv('aes-256-gcm', k, iv); c.setAAD(Buffer.from(key));
+  const ct = Buffer.concat([c.update(JSON.stringify(obj)), c.final()]); return { enc: 1, iv: iv.toString('base64'), tag: c.getAuthTag().toString('base64'), ct: ct.toString('base64') };
+};
+const dec = (key, o) => {
+  if (!o || !o.enc) return o; const k = DK(); if (!k) throw new Error('Dati cifrati: manca DATA_KEY nelle variabili del server');
+  try { const d = crypto.createDecipheriv('aes-256-gcm', k, Buffer.from(o.iv, 'base64')); d.setAAD(Buffer.from(key)); d.setAuthTag(Buffer.from(o.tag, 'base64')); return JSON.parse(Buffer.concat([d.update(Buffer.from(o.ct, 'base64')), d.final()]).toString()) }
+  catch { throw new Error('DATA_KEY errata: impossibile leggere i dati cifrati') }
+};
+const encS = (key, str) => enc(key, { t: str }), decS = (key, raw) => { if (!raw) return raw; try { const o = JSON.parse(raw); if (o && o.enc) return dec(key, o).t } catch {} return raw };
+const sealS = (key, str) => { const o = encS(key, str); return o.enc ? JSON.stringify(o) : str };
+// password: oltre a PBKDF2 sul client, sul server l'impronta è protetta con un "pepper" derivato da DATA_KEY (inutile per chi copia solo il database)
+const pepper = () => { const k = DK(); return k && crypto.createHmac('sha256', k).update('pw-pepper').digest() };
+const hp = (h) => crypto.createHmac('sha256', pepper()).update(h.toLowerCase()).digest('hex');
+const stPw = pw => pepper() ? { salt: pw.salt, hash: hp(pw.hash), p: 1 } : { salt: pw.salt, hash: pw.hash.toLowerCase() };
+const okH = (cr, h) => !!cr && (cr.p ? !!pepper() && safeEq(hp(h), cr.hash) : safeEq(h, cr.hash));
+const load = async (s, k) => dec(k, await s.get(k, { type: 'json' })) || { v: 1, recs: {} };
+
+/* ---------- Sicurezza: password (PBKDF2-SHA256, 100000 iterazioni come il client) e token firmato ---------- */
+const pbk = (pass, salt) => new Promise((ok, ko) => crypto.pbkdf2(pass, Buffer.from(salt, 'hex'), 100000, 32, 'sha256', (e, k) => e ? ko(e) : ok(k.toString('hex'))));
+const safeEq = (a, b) => { const x = Buffer.from(String(a).toLowerCase()), y = Buffer.from(String(b).toLowerCase()); return x.length === y.length && crypto.timingSafeEqual(x, y) };
+const mac = body => crypto.createHmac('sha256', process.env.APP_SECRET).update(body).digest('base64url');
+const sign = p => { const b = Buffer.from(JSON.stringify(p)).toString('base64url'); return b + '.' + mac(b) };
+const verify = t => {
+  if (typeof t !== 'string') return null; const [b, g] = t.split('.'); if (!b || !g || !safeEq(g, mac(b))) return null;
+  try { const p = JSON.parse(Buffer.from(b, 'base64url').toString()); return p.exp > Date.now() ? p : null } catch { return null }
+};
+
+/* ---------- Lettura/scrittura con ETag: nessuna modifica va persa se due dispositivi scrivono insieme ---------- */
+async function mutate(s, key, fn) {
+  for (let i = 0; i < 8; i++) {
+    const cur = await s.getWithMetadata(key, { type: 'json' }), data = cur ? dec(key, cur.data) : { v: 1, recs: {} };
+    if (!fn(data)) return data;
+    const r = cur ? await s.setJSON(key, enc(key, data), { onlyIfMatch: cur.etag }) : await s.setJSON(key, enc(key, data), { onlyIfNew: true });
+    if (r.modified) return data;
+    await sleep(40 + Math.random() * 140);
+  }
+  throw new Error('Troppe scritture contemporanee: riprova tra poco');
+}
+async function auth(s, token) {
+  const p = verify(token); if (!p) return null;
+  const data = await load(s, 'c-utenti'), u = data.recs[p.u]?.r;
+  return u && !u.deleted && u.attivo !== false ? { user: u, data } : null;
+}
+
+/* ---------- Permessi per ruolo ---------- */
+// Restituisce null (non consentito), 'skip' (da ignorare) oppure { rec, pw }
+// Servizi passati: si bloccano 6 ore dopo la fine. Il blocco vale per tutti; l'amministratore può solo cestinare/ripristinare (campi di servizio)
+const PCH_GG = 7, dests = p => p.dest === 'tutti' ? 'tutti' : Array.isArray(p.dest) ? p.dest : [p.dest], inDest = (p, id) => { const d = dests(p); return d === 'tutti' || d.includes(id) };
+const LOCK_H = 6, META = ['deleted', 'delAt', 'delCasc', 'escluso', 'updatedAt', 'updatedBy'];
+const lockedSv = (sv, now) => !!sv && !sv.deleted && now > fineServ(sv) + LOCK_H * 36e5;
+const onlyMeta = (p, r) => !!p && [...new Set([...Object.keys(p), ...Object.keys(r)])].every(k => META.includes(k) || (k === 'firma' && p.firma === '@' && r.firma) || JSON.stringify(p[k]) === JSON.stringify(r[k]));
+function clean(user, col, raw, prev, data, now, ctx) {
+  if (!raw || typeof raw.id !== 'string' || !/^[\w.:@-]{1,200}$/.test(raw.id)) return null;
+  const { pw, ...rec } = raw, ad = user.ruolo === 'admin', own = user.id;
+  if (JSON.stringify(rec).length > MAX_REC) return null;
+  const ua = Number(rec.updatedAt); rec.updatedAt = Math.min(ua > 0 ? ua : now, now + 6e5); rec.updatedBy = own;
+  if (col === 'risposte' || col === 'presenze') { const sv = ctx?.srv[rec.servizioId]?.r; if (lockedSv(sv, now) && !(ad && (onlyMeta(prev, rec) || col === 'presenze' && prev?.auto && now < fineServ(sv) + 30 * DAY))) return null }
+  if (col === 'servizi' && prev && lockedSv(prev, now) && !(ad && onlyMeta(prev, rec))) return null;
+  if (col === 'log') {
+    if (rec.utenteId !== own) return null;
+    const ts = Number(rec.ts); rec.ts = ts > 0 && ts < now + DAY ? ts : now; return { rec };
+  }
+  if (col === 'utenti') {
+    if (!ad) {
+      if (rec.id !== own || !prev) return null;
+      Object.assign(rec, { ruolo: prev.ruolo, attivo: prev.attivo, username: prev.username, creato: prev.creato, privacy: prev.privacy, privacyData: prev.privacyData }); delete rec.deleted;
+    } else {
+      rec.username = String(rec.username || '').trim().toLowerCase();
+      if (!rec.deleted && (!rec.nome || !rec.cognome || !rec.username || !RUOLI.includes(rec.ruolo))) return null;
+      if (Object.values(data.recs).some(e => e.r.id !== rec.id && !e.r.deleted && e.r.username === rec.username)) return null;
+      if (rec.id === own) { rec.ruolo = 'admin'; rec.attivo = true; delete rec.deleted } // l'amministratore non può togliersi i permessi
+    }
+    if (pw && !okPw(pw)) return null;
+    return { rec, pw: pw ? { salt: pw.salt, hash: pw.hash.toLowerCase() } : null };
+  }
+  if (col === 'chat' && rec.promId) { // chat di un promemoria: amministratore e destinatari; "a" = gestore | tutti | id utente
+    const pm = ctx?.prom[rec.promId]?.r, tx = String(rec.testo || '').trim().slice(0, 500), a = String(rec.a || 'gestore');
+    if (!ctx || ctx.cfg?.chat === false || !pm || pm.deleted || !tx || user.ruolo === 'lettura' || prev && prev.utenteId !== own && !ad) return null;
+    if (!ad && (!inDest(pm, own) || a !== 'gestore' && a !== 'tutti')) return null;
+    if (now > (pm.quando || 0) + PCH_GG * DAY) return null;
+    const ts = Number(rec.ts); return { rec: { id: rec.id, promId: rec.promId, a, utenteId: own, nome: `${user.nome} ${user.cognome}`, testo: tx, ts: ts > 0 && ts < now + 6e5 ? ts : now, updatedAt: rec.updatedAt, updatedBy: own } };
+  }
+  if (col === 'chat' && rec.cl !== undefined && !rec.promId && !rec.servizioId) { // chat cliente-amministratore: sempre attiva
+    const tx = String(rec.testo || '').trim().slice(0, 500), cl = ad ? String(rec.cl) : own;
+    if (!tx || !ad && user.ruolo !== 'cliente' || prev && prev.utenteId !== own && !ad) return null;
+    const ts = Number(rec.ts); return { rec: { id: rec.id, cl, a: ad ? cl : 'gestore', utenteId: own, nome: `${user.nome} ${user.cognome}`, testo: tx, ts: ts > 0 && ts < now + 6e5 ? ts : now, updatedAt: rec.updatedAt, updatedBy: own } };
+  }
+  if (col === 'richieste') { // richieste di nuovo evento: il cliente crea o annulla la propria, l'amministratore le gestisce
+    if (ad) return { rec };
+    if (user.ruolo !== 'cliente') return null;
+    if (prev) return prev.clienteId === own && prev.stato === 'attesa' && rec.stato === 'annullata' ? { rec: { ...prev, stato: 'annullata', updatedAt: rec.updatedAt, updatedBy: own } } : null;
+    const t = (v, n) => String(v ?? '').trim().slice(0, n), o = { id: rec.id, clienteId: own, titolo: t(rec.titolo, 120), luogo: t(rec.luogo, 160), data: t(rec.data, 10), oraInizio: t(rec.oraInizio, 5), oraFine: t(rec.oraFine, 5), posti: Math.max(1, Math.min(200, Number(rec.posti) || 1)), note: t(rec.note, 500), stato: 'attesa', creata: now, updatedAt: rec.updatedAt, updatedBy: own };
+    return o.titolo && o.luogo && /^\d{4}-\d\d-\d\d$/.test(o.data) && /^\d\d:\d\d$/.test(o.oraInizio) && /^\d\d:\d\d$/.test(o.oraFine) ? { rec: o } : null;
+  }
+  if (col === 'gps') { // richiesta di verifica posizione: solo cliente del servizio (o amministratore) e solo se qualcuno è in turno; una ogni 90 secondi
+    const sid = String(rec.servizioId || ''), sv = ctx?.srv[sid]?.r;
+    if (prev || !sv || sv.deleted || !ad && (user.ruolo !== 'cliente' || sv.clienteId !== own)) return null;
+    if (!Object.values(ctx.pres).some(e => e.r.servizioId === sid && e.r.checkIn && !e.r.checkOut)) return null;
+    if (Object.values(data.recs).some(e => e.r.servizioId === sid && e.r.ts > now - 9e4)) return null;
+    return { rec: { id: rec.id, servizioId: sid, clienteId: sv.clienteId || '', ts: now, updatedAt: rec.updatedAt, updatedBy: own } };
+  }
+  if (col === 'posizioni') { // posizione condivisa dal volontario: solo con consenso attivo e solo tra check-in e check-out
+    const sid = String(rec.servizioId || ''), p = ctx?.pres[sid + '_' + own]?.r, la = Number(rec.lat), lo = Number(rec.lng);
+    if (user.ruolo !== 'tecnico' || rec.id !== sid + '_' + own || user.gpsCliente !== true || !p?.checkIn || p.checkOut || !(Math.abs(la) <= 90) || !(Math.abs(lo) <= 180)) return null;
+    return { rec: { id: rec.id, servizioId: sid, utenteId: own, lat: la, lng: lo, acc: Number(rec.acc) > 0 ? Math.round(Number(rec.acc)) : null, ts: now, updatedAt: rec.updatedAt, updatedBy: own } };
+  }
+  if (col === 'chat') { // solo l'amministratore e chi ha accettato il servizio (o il cliente dopo il primo check-in); chat attiva e non scaduta (48 h dopo la fine)
+    const sv = ctx?.srv[rec.servizioId]?.r, tx = String(rec.testo || '').trim().slice(0, 500);
+    if (!ctx || ctx.cfg?.chat === false || !sv || sv.deleted || !tx || user.ruolo === 'lettura' || prev && prev.utenteId !== own && !ad) return null;
+    if (user.ruolo === 'cliente') { if (sv.clienteId !== own || now > fineServ(sv) + LOCK_H * 36e5 || !Object.values(ctx.pres).some(e => e.r.servizioId === rec.servizioId && e.r.checkIn)) return null }
+    else if (!ad && ctx.ris[rec.servizioId + '_' + own]?.r?.esito !== 'si') return null;
+    if (now > fineServ(sv) + 48 * 36e5) return null;
+    const ts = Number(rec.ts); return { rec: { id: rec.id, servizioId: rec.servizioId, utenteId: own, nome: `${user.nome} ${user.cognome}`, testo: tx, ts: ts > 0 && ts < now + 6e5 ? ts : now, updatedAt: rec.updatedAt, updatedBy: own } };
+  }
+  if (col === 'risposte' || col === 'presenze') {
+    if (!ad) {
+      if (user.ruolo !== 'tecnico' || rec.utenteId !== own || rec.id !== rec.servizioId + '_' + own) return null;
+      if (col === 'presenze' && prev?.verificatoDa) return null; // presenza già confermata dal coordinatore
+      delete rec.verificatoDa; delete rec.noteCoord;
+    } else if (typeof rec.servizioId !== 'string' || typeof rec.utenteId !== 'string') return null;
+    return { rec };
+  }
+  if (col === 'promemoria') { rec.quando = Number(rec.quando) || Date.parse(String(rec.scadenza) + ':00Z') - 2 * 36e5; if (Array.isArray(rec.dest)) rec.dest = rec.dest.filter(x => typeof x === 'string').slice(0, 500) }
+  return ad ? { rec } : null; // servizi, promemoria, impostazioni: solo amministratore
+}
+// Cosa può vedere ciascun ruolo
+const fineServ = sv => { const t = Date.parse(sv.data + 'T' + (sv.oraFine || '23:59') + ':00Z') - 2 * 36e5; return sv.oraFine < sv.oraInizio ? t + DAY : t }; // fuso Italia approssimato (UTC+2)
+function view(user, col, r, okS, cli) {
+  if (col === 'posizioni') return r.utenteId === user.id ? r : null; // le coordinate non viaggiano mai verso gli altri dispositivi
+  if (user.ruolo === 'admin') return r;
+  if (user.ruolo === 'cliente') { // il cliente vede solo i propri eventi e le proprie chat; i volontari arrivano nel record derivato "equipaggio"
+    if (col === 'utenti') return r.id === user.id ? r : null;
+    if (col === 'servizi') return r.clienteId === user.id ? r : null;
+    if (col === 'richieste') return r.clienteId === user.id ? r : null;
+    if (col === 'chat') return r.cl === user.id || r.servizioId && cli?.sv.has(r.servizioId) && r.ts >= (cli.fci.get(r.servizioId) ?? Infinity) ? r : null;
+    if (col === 'log') return r.utenteId === user.id ? r : null;
+    if (col === 'impostazioni') { const { pinHash, pinSalt, ...x } = r; return x }
+    return null;
+  }
+  if (col === 'richieste') return null;
+  if (col === 'gps') return user.ruolo === 'tecnico' && okS?.has(r.servizioId) ? r : null;
+  if (col === 'chat' && r.promId) return user.ruolo !== 'lettura' && (r.utenteId === user.id || okS?.has('p:' + r.promId) && (r.a === 'tutti' || r.a === user.id)) ? r : null;
+  if (col === 'chat') return user.ruolo === 'tecnico' && !r.cl && okS?.has(r.servizioId) ? r : null;
+  const tec = user.ruolo === 'tecnico';
+  if (col === 'utenti') { if (r.id === user.id) return r; if (tec) return null; const { cell, email, ...x } = r; return x }
+  if (col === 'risposte' || col === 'presenze') return tec && r.utenteId !== user.id ? null : r;
+  if (col === 'log') return r.utenteId === user.id ? r : null;
+  if (col === 'promemoria') return inDest(r, user.id) ? r : null;
+  if (col === 'impostazioni') { const { pinHash, pinSalt, ...x } = r; return x }
+  return r;
+}
+
+/* ---------- Azioni ---------- */
+async function setup(s, b) {
+  const u = b.user;
+  if (!u || typeof u.id !== 'string' || !/^[\w.:@-]{1,200}$/.test(u.id) || !okPw(u.pw)) return E('Dati di configurazione non validi');
+  const un = String(u.username || '').trim().toLowerCase();
+  if (!u.nome || !u.cognome || !un) return E('Compila nome, cognome e nome utente');
+  const c = await s.setJSON('creds', enc('creds', { v: 1, recs: { [u.id]: stPw(u.pw) } }), { onlyIfNew: true });
+  if (!c.modified) return E('Il cloud ha già degli utenti', 403); // il primo che arriva diventa amministratore
+  const { pw, ...rest } = u, now = Date.now();
+  const rec = { ...rest, username: un, ruolo: 'admin', attivo: true, updatedAt: Math.min(Number(u.updatedAt) || now, now), updatedBy: u.id }; delete rec.deleted;
+  await s.setJSON('c-utenti', enc('c-utenti', { v: 1, recs: { [u.id]: { s: now * 1000, r: rec } } }));
+  return J({ token: sign({ u: u.id, exp: now + TOKEN_GG * DAY }), user: rec });
+}
+async function login(s, b) {
+  const un = String(b.username || '').trim().toLowerCase(), pw = String(b.password || '');
+  const e = Object.values((await load(s, 'c-utenti')).recs).find(x => !x.r.deleted && x.r.username === un);
+  const cr = e ? (await load(s, 'creds')).recs[e.r.id] : null;
+  const h = await pbk(pw, cr?.salt || '0'.repeat(32)); // si calcola sempre: stesso tempo anche se l'utente non esiste
+  if (!okH(cr, h)) { await sleep(500); return E('Nome utente o password errati', 401) }
+  if (e.r.attivo === false) return E('Account sospeso: contatta il coordinatore', 403);
+  if (encOn() && !cr.p) await mutate(s, 'creds', d => { d.recs[e.r.id] = stPw({ salt: cr.salt, hash: h }); return true }).catch(() => {}); // passa al pepper
+  return J({ token: sign({ u: e.r.id, exp: Date.now() + TOKEN_GG * DAY }), user: e.r, salt: cr.salt });
+}
+const mStart = ms => { const d = new Date(ms); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) };
+const mNext = ms => { const d = new Date(ms); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) };
+const mKey = ms => 'c-log-' + new Date(ms).toISOString().slice(0, 7);
+
+/* ---------- Consumo del piano gratuito (stima in crediti Netlify: calcolo 10/GB-ora, richieste 2 ogni 10.000, banda 20/GB) ---------- */
+const UL = 300, MEM = 1, SOGLIE = [100, 200, 250, 300];
+let acc = { n: 0, ms: 0, by: 0 }, lastFl = 0;
+const crd = a => a.n * 2e-4 + a.ms / 36e5 * MEM * 10 + a.by / 1e9 * 20;
+async function flush(s, t0, force) {
+  if (!force && acc.n < 10 && t0 - lastFl < 6e4) return; const a = acc; acc = { n: 0, ms: 0, by: 0 }; lastFl = t0;
+  const m = new Date(t0).toISOString().slice(0, 7);
+  await mutate(s, 'usage', d => {
+    if (d.m !== m) { d.hist = { ...(d.hist || {}), ...(d.m ? { [d.m]: Math.round(d.cr * 100) / 100 } : {}) }; Object.assign(d, { m, n: 0, ms: 0, by: 0, cr: 0, av: [] }) }
+    d.n += a.n; d.ms += a.ms; d.by += a.by; d.cr = crd(d);
+    for (const g of SOGLIE) if (d.cr >= g && !d.av.some(x => x.s === g)) d.av.push({ s: g, ts: t0 });
+    return true;
+  });
+}
+async function getUsage(s) {
+  const d = (await s.get('usage', { type: 'json' })) || {}, m = new Date().toISOString().slice(0, 7), cur = d.m === m;
+  const n = (cur ? d.n || 0 : 0) + acc.n, cr = cur ? crd({ n: d.n || 0, ms: d.ms || 0, by: d.by || 0 }) + crd(acc) : crd(acc);
+  const av = [...(cur ? d.av || [] : [])]; for (const g of SOGLIE) if (cr >= g && !av.some(x => x.s === g)) av.push({ s: g, ts: Date.now() });
+  return { m, n, cr: Math.round(cr * 1000) / 1000, limit: UL, av, hist: d.hist || {}, enc: encOn() };
+}
+
+/* ---------- Conservazione: firme e posizioni GPS si cancellano dopo RET giorni (presenze e ore restano) ---------- */
+const GPS = ['lat', 'lng', 'acc', 'ind'], hasDati = r => r.firma || [r.checkIn, r.checkOut].some(c => c && GPS.some(k => k in c));
+function strip(r, t0) { delete r.firma; for (const c of [r.checkIn, r.checkOut]) if (c) for (const k of GPS) delete c[k]; r.datiRimossi = t0 }
+let lastPurge = 0;
+async function purge(s, t0, nextS) {
+  if (t0 - lastPurge < 36e5) return 0; lastPurge = t0;
+  const lim = t0 - RET * DAY, sv = (await load(s, 'c-servizi')).recs; let ids = [], tot = 0;
+  await mutate(s, 'c-presenze', d => {
+    ids = []; let n = 0;
+    for (const e of Object.values(d.recs)) {
+      const r = e.r, t = r.checkIn?.ts || r.checkOut?.ts || (sv[r.servizioId]?.r?.data ? Date.parse(sv[r.servizioId].r.data + 'T12:00:00Z') : 0);
+      if (!t || t >= lim || !hasDati(r)) continue;
+      if (r.firma) ids.push(r.id); strip(r, t0); r.updatedAt = t0; r.updatedBy = 'server'; e.s = nextS(); n++;
+    }
+    tot = n; return n > 0;
+  });
+  for (const id of ids) await s.delete('f-' + id).catch(() => {});
+  // Cestino: dopo RET giorni gli elementi eliminati vengono cancellati in modo definitivo (gli utenti restano come nome anonimo per lo storico)
+  const gone = r => r.deleted && !r.purged && (r.delAt || r.updatedAt || 0) < lim, dead = [];
+  await mutate(s, 'c-utenti', d => { let n = 0; for (const e of Object.values(d.recs)) { const r = e.r; if (!gone(r)) continue; dead.push(r.id);
+    e.r = { id: r.id, nome: r.nome, cognome: r.cognome, username: 'eliminato-' + r.id.slice(-6), ruolo: r.ruolo === 'admin' ? 'tecnico' : r.ruolo, attivo: false, deleted: true, purged: true, delMode: r.delMode, delAt: r.delAt, creato: r.creato, updatedAt: t0, updatedBy: 'server' }; e.s = nextS(); n++ } return n > 0 }).catch(() => {});
+  if (dead.length) await mutate(s, 'creds', d => { for (const id of dead) delete d.recs[id]; return true }).catch(() => {});
+  for (const [col, keep] of [['servizi', ['id', 'data', 'oraInizio', 'oraFine', 'titolo']], ['promemoria', ['id', 'titolo', 'scadenza']], ['risposte', ['id', 'servizioId', 'utenteId', 'esito', 'ts']]])
+    await mutate(s, 'c-' + col, d => { let n = 0; for (const e of Object.values(d.recs)) { const r = e.r; if (!gone(r)) continue; e.r = Object.fromEntries([...keep.filter(k => k in r).map(k => [k, r[k]]), ['deleted', true], ['purged', true], ['delAt', r.delAt], ['updatedAt', t0], ['updatedBy', 'server']]); e.s = nextS(); n++ } return n > 0 }).catch(() => {});
+  const pr = (await load(s, 'c-promemoria')).recs;
+  await mutate(s, 'c-chat', d => { let n = 0; for (const [k, e] of Object.entries(d.recs)) { const v = sv[e.r.servizioId]?.r, pm = pr[e.r.promId]?.r; if (e.r.cl !== undefined ? t0 > (e.r.ts || 0) + 90 * DAY : e.r.promId ? !pm || pm.deleted || t0 > (pm.quando || 0) + PCH_GG * DAY : !v || v.deleted || t0 > fineServ(v) + 48 * 36e5) { delete d.recs[k]; n++ } } return n > 0 }).catch(() => {}); // la chat si azzera 48 h dopo la fine dell'evento
+  for (const col of ['posizioni', 'gps']) await mutate(s, 'c-' + col, d => { let n = 0; for (const [k, e] of Object.entries(d.recs)) { const v = sv[e.r.servizioId]?.r; if (!v || v.deleted || t0 > fineServ(v) + 3 * 36e5) { delete d.recs[k]; n++ } } return n > 0 }).catch(() => {}); // le coordinate restano solo il tempo del servizio
+  return tot;
+}
+
+// Contesto del cliente: i suoi eventi e il momento del primo check-in di ciascuno (la chat con i volontari si apre da lì)
+async function cliCtx(s, user) {
+  const sv = Object.values((await load(s, 'c-servizi')).recs).map(e => e.r).filter(r => r.clienteId === user.id && !r.deleted), fci = new Map();
+  for (const e of Object.values((await load(s, 'c-presenze')).recs)) if (e.r.checkIn && sv.some(v => v.id === e.r.servizioId)) fci.set(e.r.servizioId, Math.min(fci.get(e.r.servizioId) ?? Infinity, e.r.checkIn.ts));
+  return { sv: new Set(sv.map(v => v.id)), svr: Object.fromEntries(sv.map(v => [v.id, v])), fci };
+}
+// Record derivato "equipaggio": quanti volontari sono disponibili e, da quando hanno fatto il check-in, chi è in servizio (nome, telefono e, se consentito, ultima posizione)
+async function equipaggio(s, cli, t0) {
+  const ris = Object.values((await load(s, 'c-risposte')).recs).map(e => e.r), pres = Object.values((await load(s, 'c-presenze')).recs).map(e => e.r), us = (await load(s, 'c-utenti')).recs, pos = (await load(s, 'c-posizioni')).recs, out = [];
+  for (const v of Object.values(cli.svr)) {
+    if (Math.abs(Date.parse(v.data) - t0) > 60 * DAY) continue;
+    const crew = []; if (t0 < fineServ(v) + LOCK_H * 36e5) for (const p of pres) { if (p.servizioId !== v.id || !p.checkIn || p.deleted) continue; const u = us[p.utenteId]?.r; if (!u || u.deleted) continue; const ps = pos[v.id + '_' + u.id]?.r;
+      crew.push({ id: u.id, nome: u.nome, cognome: u.cognome, cell: u.cell || '', ci: p.checkIn.ts, co: p.checkOut?.ts || null, pos: !p.checkOut && u.gpsCliente === true && ps && t0 - ps.ts < 18e5 ? { lat: ps.lat, lng: ps.lng, ts: ps.ts } : null, cons: u.gpsCliente === true }) }
+    out.push({ id: 'eq_' + v.id, servizioId: v.id, disp: ris.filter(r => r.servizioId === v.id && r.esito === 'si' && !r.deleted).length, crew, updatedAt: t0, updatedBy: 'server' });
+  }
+  return out;
+}
+async function pushTo(s, ids, pl) {
+  const key = vapidKey(); if (!key || !ids.length) return; const all = await getPush(s); let ch = false;
+  for (const id of ids) for (const sub of all[id] || []) { const c = await sendPush(sub, JSON.stringify(pl), key).catch(() => 0); if (c === 404 || c === 410) { all[id] = all[id].filter(x => x.endpoint !== sub.endpoint); ch = true } }
+  if (ch) await setPush(s, all);
+}
+// Notifiche push per le azioni del cliente (richiesta evento, verifica GPS, messaggi)
+async function avvisi(s, user, by, state, t0) {
+  const us = Object.values(state['c-utenti'].recs).map(e => e.r).filter(u => !u.deleted && u.attivo !== false), adm = us.filter(u => u.ruolo === 'admin').map(u => u.id), nm = `${user.nome} ${user.cognome}`;
+  if (user.ruolo === 'cliente') {
+    if (by.richieste?.some(r => r.stato !== 'annullata')) await pushTo(s, adm, { t: '➕ Richiesta di nuovo evento', b: `${nm}: ${String(by.richieste[0].titolo || '').slice(0, 80)}`, go: 'richieste', tg: 'rq-' + by.richieste[0].id });
+    if (by.chat?.some(m => m.cl !== undefined && !m.servizioId)) await pushTo(s, adm, { t: '💬 Messaggio da ' + nm, b: String(by.chat[0].testo || '').slice(0, 100), go: 'richieste', tg: 'cc-' + user.id });
+  }
+  if (user.ruolo === 'admin' && by.chat?.some(m => m.cl && !m.servizioId)) await pushTo(s, [...new Set(by.chat.filter(m => m.cl).map(m => String(m.cl)))], { t: '💬 Messaggio dal gestore', b: String(by.chat.find(m => m.cl).testo || '').slice(0, 100), go: 'richieste', tg: 'cg' });
+  if (by.gps?.length && (user.ruolo === 'cliente' || user.ruolo === 'admin')) {
+    const pres = Object.values((await load(s, 'c-presenze')).recs).map(e => e.r), sids = new Set(by.gps.map(g => g.servizioId));
+    const ids = us.filter(u => u.gpsCliente === true && pres.some(p => sids.has(p.servizioId) && p.utenteId === u.id && p.checkIn && !p.checkOut)).map(u => u.id);
+    await pushTo(s, ids, { t: '📍 Verifica della posizione', b: 'Il cliente chiede la tua posizione. Apri l\'app per condividerla.', go: 'turno', tg: 'gps' });
+  }
+}
+async function doSync(s, user, udata, b) {
+  const t0 = Date.now(), since = Number(b.since) || 0, by = {};
+  for (const c of Array.isArray(b.changes) ? b.changes : []) if (c && COLS.includes(c.col) && c.rec) (by[c.col] ||= []).push(c.rec);
+  const state = { 'c-utenti': udata }, rej = [], extra = [], firme = [], cred = [];
+  const ctx = by.chat?.length || by.risposte?.length || by.presenze?.length || by.servizi?.length || by.gps?.length || by.posizioni?.length ? { srv: (await load(s, 'c-servizi')).recs, ris: (await load(s, 'c-risposte')).recs, cfg: (await load(s, 'c-impostazioni')).recs.cfg?.r, prom: by.chat?.length ? (await load(s, 'c-promemoria')).recs : {}, pres: by.gps?.length || by.posizioni?.length || user.ruolo === 'cliente' && by.chat?.length ? (await load(s, 'c-presenze')).recs : {} } : null;
+  let ctr = 0; const nextS = () => t0 * 1000 + ctr++;
+  const note = (azione, esito) => { if (extra.length < 30) extra.push({ id: 'sv_' + crypto.randomBytes(6).toString('hex'), ts: t0, utenteId: user.id, tipo: 'sync', azione, esito, updatedAt: t0, updatedBy: 'server' }) };
+
+  // 1) scrittura delle modifiche ricevute (ultima modifica vince)
+  const noFirma = by.presenze?.length ? (await load(s, 'c-impostazioni')).recs.cfg?.r?.firma === false : false;
+  for (const col of COLS) {
+    const items = by[col]; if (col === 'log' || !items?.length) continue;
+    let acc, den, rj, fm, cu;
+    state['c-' + col] = await mutate(s, 'c-' + col, d => {
+      acc = 0; den = []; rj = []; fm = []; cu = [];
+      for (const raw of items) {
+        const prev = d.recs[raw?.id]?.r, c = clean(user, col, raw, prev, d, t0, ctx);
+        if (!c) { den.push(raw?.id); continue }
+        const { rec, pw } = c;
+        if (col === 'presenze' && noFirma && typeof rec.firma === 'string' && rec.firma.startsWith('data:image/')) delete rec.firma;
+        if (prev && (prev.updatedAt || 0) > rec.updatedAt) { rj.push({ col, ...d.recs[rec.id] }); continue }
+        if (col === 'presenze') { const t = rec.checkIn?.ts || rec.checkOut?.ts; if (t && t < t0 - RET * DAY && hasDati(rec)) strip(rec, t0) }
+        if (col === 'presenze' && typeof rec.firma === 'string' && rec.firma.startsWith('data:image/')) { // la firma sta in un blob a parte
+          if (rec.firma.length > MAX_FIRMA) { den.push(rec.id); continue }
+          fm.push([rec.id, rec.firma]); rec.firma = '@';
+        }
+        d.recs[rec.id] = { s: nextS(), r: rec }; acc++;
+        if (pw) cu.push([rec.id, pw]);
+      }
+      return acc > 0;
+    });
+    firme.push(...fm); cred.push(...cu); rej.push(...rj);
+    for (const id of den) note(`Operazione non consentita: ${col} ${id}`, 'negato');
+    for (const r of rj) note(`Modifica scartata: ${col} ${r.r.id} (sul server c'è una versione più recente)`, 'scartata');
+  }
+  if (by.promemoria?.length || by.servizi?.length || by.risposte?.length || by.presenze?.length) await s.delete('rem-next').catch(() => {});
+  if (cred.length) await mutate(s, 'creds', d => { for (const [id, p] of cred) d.recs[id] = stPw(p); return true });
+  for (const [id, f] of firme) await s.set('f-' + id, sealS('f-' + id, f));
+  const nrm = await purge(s, t0, nextS).catch(() => 0); if (nrm) delete state['c-presenze']; if (nrm) note(`Conservazione ${RET} giorni: rimosse firme e posizioni da ${nrm} presenze`, 'ok');
+  const groups = {}, add = r => (groups[mKey(r.ts)] ||= []).push(r);
+  for (const raw of by.log || []) { const c = clean(user, 'log', raw, null, null, t0); if (c) add(c.rec) }
+  extra.forEach(add);
+  for (const [k, arr] of Object.entries(groups)) state[k] = await mutate(s, k, d => { let n = 0; for (const r of arr) if (!d.recs[r.id]) { d.recs[r.id] = { s: nextS(), r }; n++ } return n > 0 });
+
+  // 2) raccolta di ciò che è cambiato dall'ultima sincronizzazione (since<0: pagina successiva)
+  const min = since === 0 ? -1 : since < 0 ? -since : since - OVR, cand = new Map();
+  const put = (col, e) => { const k = col + '|' + e.r.id; if (!cand.has(k)) cand.set(k, { col, s: e.s, r: e.r }) };
+  for (const col of COLS) {
+    if (col === 'log') continue;
+    const d = state['c-' + col] ?? await load(s, 'c-' + col);
+    for (const e of Object.values(d.recs)) if (e.s > min) put(col, e);
+  }
+  const ms0 = since === 0 ? t0 - 180 * DAY : Math.max(min / 1000, t0 - 180 * DAY);
+  for (let m = mStart(user.ruolo === 'admin' ? ms0 : Math.max(ms0, t0 - 40 * DAY)); m <= t0; m = mNext(m)) {
+    const k = mKey(m), d = state[k] ?? await load(s, k);
+    for (const e of Object.values(d.recs)) if (e.s > min) put('log', e);
+  }
+  rej.forEach(e => put(e.col, e));
+  let okS = null, cli = null;
+  if (user.ruolo === 'tecnico' && [...cand.values()].some(c => c.col === 'chat' || c.col === 'gps')) {
+    okS = new Set(Object.values((await load(s, 'c-risposte')).recs).filter(e => e.r.utenteId === user.id && e.r.esito === 'si' && !e.r.deleted).map(e => e.r.servizioId));
+    for (const e of Object.values((await load(s, 'c-promemoria')).recs)) if (!e.r.deleted && inDest(e.r, user.id)) okS.add('p:' + e.r.id);
+  }
+  if (user.ruolo === 'cliente') cli = await cliCtx(s, user);
+  const list = [...cand.values()].map(c => ({ ...c, v: view(user, c.col, c.r, okS, cli) })).filter(c => c.v)
+    .sort((a, b) => a.s - b.s || (a.col + a.r.id < b.col + b.r.id ? -1 : 1));
+  if (cli) { let n = 0; for (const rec of await equipaggio(s, cli, t0)) list.push({ col: 'equipaggio', s: t0 * 1000 + n++, r: rec, v: rec }) }
+  await avvisi(s, user, by, state, t0).catch(() => {});
+
+  // 3) risposta a pagine (~3,5 MB): firme reinserite solo per i record inviati
+  const recs = []; let size = 0, more = false, last = 0;
+  for (let i = 0; i < list.length && !more; i += 8) {
+    const ch = list.slice(i, i + 8);
+    await Promise.all(ch.map(async c => {
+      if (c.col === 'presenze' && c.v.firma === '@') { const f = decS('f-' + c.r.id, await s.get('f-' + c.r.id, { type: 'text' })); c.v = { ...c.v }; if (f) c.v.firma = f; else delete c.v.firma }
+    }));
+    for (const c of ch) {
+      const n = JSON.stringify(c.v).length;
+      if (recs.length && size + n > PAGE) { more = true; break }
+      recs.push({ col: c.col, rec: c.v }); size += n; last = c.s;
+    }
+  }
+  return J({ recs, seq: more ? -last : t0 * 1000, more, ...(user.ruolo === 'admin' ? { usage: await getUsage(s) } : {}) });
+}
+
+/* ---------- Azzeramento dati (prove): automatico a ogni deploy se RESET_ON_DEPLOY=true, oppure quando cambia RESET_KEY; manuale con l'azione reset ---------- */
+const KEEP = ['usage', 'rk'];
+async function wipe(s) { const { blobs } = await s.list(); await Promise.all(blobs.filter(x => !KEEP.includes(x.key)).map(x => s.delete(x.key))) }
+let rkOk = false, raOk = false;
+// Reimpostazione dell'amministratore (volontari e dati restano): a ogni deploy se RESET_ADMIN_ON_DEPLOY=true, oppure quando cambia RESET_ADMIN_KEY
+async function autoAdmin(s, ctx) {
+  if (raOk) return; const k = process.env.RESET_ADMIN_KEY || (process.env.RESET_ADMIN_ON_DEPLOY === 'true' ? (ctx?.deploy?.id || process.env.DEPLOY_ID) : '');
+  if (k && (await s.get('ark', { type: 'text' })) !== k) {
+    if (await s.get('creds', { type: 'json' })) {
+      const now = Date.now(); await mutate(s, 'c-utenti', d => { let n = 0; for (const e of Object.values(d.recs)) if (e.r.ruolo === 'admin' && e.r.attivo !== false && !e.r.deleted) { e.r = { ...e.r, attivo: false, updatedAt: now, updatedBy: 'server' }; e.s = now * 1000 + n++ } return n > 0 });
+      await s.setJSON('needadmin', { t: now });
+    } await s.set('ark', k);
+  } raOk = true;
+}
+async function adminSetup(s, b) {
+  if (!(await s.get('needadmin', { type: 'json' }))) return E('Reimpostazione dell\'amministratore non attiva', 403);
+  const u = b.user; if (!u || typeof u.id !== 'string' || !/^[\w.:@-]{1,200}$/.test(u.id) || !okPw(u.pw)) return E('Dati non validi');
+  const un = String(u.username || '').trim().toLowerCase(); if (!u.nome || !u.cognome || !un) return E('Compila nome, cognome e nome utente');
+  const { pw, ...rest } = u, now = Date.now(); let id = u.id, rec;
+  await mutate(s, 'c-utenti', d => {
+    const ex = Object.values(d.recs).find(e => !e.r.deleted && e.r.username === un);
+    if (ex && !(ex.r.ruolo === 'admin' && ex.r.attivo === false)) { id = null; return false }
+    if (ex) id = ex.r.id; rec = { ...(ex?.r || {}), ...rest, id, username: un, ruolo: 'admin', attivo: true, updatedAt: now, updatedBy: id }; delete rec.deleted;
+    d.recs[id] = { s: now * 1000, r: rec }; return true;
+  });
+  if (!id) return E('Nome utente già usato da un altro utente', 409);
+  await mutate(s, 'creds', d => { d.recs[id] = stPw(pw); return true });
+  await s.delete('needadmin'); return J({ token: sign({ u: id, exp: now + TOKEN_GG * DAY }), user: rec });
+}
+async function autoReset(s, ctx) {
+  if (rkOk) return; const k = process.env.RESET_KEY || (process.env.RESET_ON_DEPLOY === 'true' ? (ctx?.deploy?.id || process.env.DEPLOY_ID) : '');
+  if (k && (await s.get('rk', { type: 'text' })) !== k) { await wipe(s); await s.set('rk', k) } rkOk = true;
+}
+
+// Migrazione una tantum: cifra i dati già presenti in chiaro quando DATA_KEY viene impostata (il marcatore evita di rifarla a ogni avvio)
+let encMig = false;
+async function migra(s) {
+  if (encMig || !encOn()) return; const fp = crypto.createHash('sha256').update(DK()).digest('hex').slice(0, 12);
+  if ((await s.get('encm', { type: 'text' })) !== fp) {
+    const { blobs } = await s.list();
+    for (const { key } of blobs) {
+      if (key === 'creds' || key.startsWith('c-')) { const o = await s.get(key, { type: 'json' }); if (o && !o.enc) await mutate(s, key, () => true) }
+      else if (key.startsWith('f-')) { const f = await s.get(key, { type: 'text' }); if (f && !f.startsWith('{"enc"')) await s.set(key, sealS(key, f)) }
+    }
+    await s.set('encm', fp);
+  } encMig = true;
+}
+
+
+/* ---------- Notifiche push (Web Push, RFC 8030/8291/8292) senza librerie esterne. Chiave privata VAPID: variabile VAPID_PRIVATE_KEY ---------- */
+const VAPID_PUB = 'BGYnD8gOFFydbHrAnqD2R_w2b7VUfxF0sl_rLtVheewbq_G4PVyYE19enHbWgYVu0DqKHo5o5kj-5RXPYo7mYkA', b64u = b => Buffer.from(b).toString('base64url');
+const getPush = async s => { const o = await s.get('push', { type: 'json' }).catch(() => null); try { return o ? dec('push', o) : {} } catch { return {} } };
+const setPush = (s, o) => s.setJSON('push', enc('push', o));
+function vapidKey() {
+  const d = process.env.VAPID_PRIVATE_KEY; if (!d) return null; const pub = Buffer.from(process.env.VAPID_PUBLIC_KEY || VAPID_PUB, 'base64url');
+  return crypto.createPrivateKey({ key: { kty: 'EC', crv: 'P-256', d, x: b64u(pub.subarray(1, 33)), y: b64u(pub.subarray(33, 65)) }, format: 'jwk' });
+}
+const hk = (salt, ikm, info, n) => Buffer.from(crypto.hkdfSync('sha256', ikm, salt, info, n));
+export function encPush(sub, payload) {
+  const ua = Buffer.from(sub.keys.p256dh, 'base64url'), au = Buffer.from(sub.keys.auth, 'base64url'), e = crypto.createECDH('prime256v1'); e.generateKeys();
+  const pub = e.getPublicKey(), ikm = hk(au, e.computeSecret(ua), Buffer.concat([Buffer.from('WebPush: info\0'), ua, pub]), 32), salt = crypto.randomBytes(16);
+  const c = crypto.createCipheriv('aes-128-gcm', hk(salt, ikm, Buffer.from('Content-Encoding: aes128gcm\0'), 16), hk(salt, ikm, Buffer.from('Content-Encoding: nonce\0'), 12));
+  const ct = Buffer.concat([c.update(Buffer.concat([Buffer.from(payload), Buffer.from([2])])), c.final(), c.getAuthTag()]), rs = Buffer.alloc(4); rs.writeUInt32BE(4096);
+  return Buffer.concat([salt, rs, Buffer.from([pub.length]), pub, ct]);
+}
+async function sendPush(sub, payload, key) {
+  const h = b64u(JSON.stringify({ typ: 'JWT', alg: 'ES256' })), p = b64u(JSON.stringify({ aud: new URL(sub.endpoint).origin, exp: Math.floor(Date.now() / 1e3) + 12 * 3600, sub: process.env.VAPID_SUBJECT || 'mailto:admin@vigilanza.invalid' }));
+  const sig = crypto.sign('sha256', Buffer.from(h + '.' + p), { key, dsaEncoding: 'ieee-p1363' });
+  const r = await fetch(sub.endpoint, { method: 'POST', headers: { 'content-encoding': 'aes128gcm', 'content-type': 'application/octet-stream', ttl: '3600', urgency: 'high', authorization: `vapid t=${h}.${p}.${b64u(sig)}, k=${process.env.VAPID_PUBLIC_KEY || VAPID_PUB}` }, body: encPush(sub, payload), signal: AbortSignal.timeout(8000) });
+  return r.status;
+}
+// Eseguita ogni minuto dalla funzione pianificata: se nulla è in scadenza esce subito (1 sola lettura)
+const iniServ = sv => Date.parse(sv.data + 'T' + (sv.oraInizio || '00:00') + ':00Z') - 2 * 36e5;
+export async function runPush(s = st(), now = Date.now()) {
+  const nx = await s.get('rem-next', { type: 'json' }).catch(() => null); if (nx && nx.t > now) return 0;
+  const key = vapidKey(), live = async c => Object.values((await load(s, c)).recs).map(e => e.r).filter(r => !r.deleted);
+  const pr = (await live('c-promemoria')).filter(p => p.quando);
+  const sent = await s.get('rem-sent', { type: 'json' }).catch(() => null) || {}, due = [], fut = [];
+  const add = (t, k, it) => { if (t > now) fut.push(t); else if (now - t < 12 * 6e4 && !sent[k]) due.push({ k, ...it }) };
+  for (const p of pr) for (const n of [0, 1]) add(p.quando + n * 3e5, `${p.id}:${p.quando}:${n}`, { dest: u => inDest(p, u), pl: { t: '🔔 ' + p.titolo, b: String(p.testo || 'Promemoria').slice(0, 140), prom: p.id, n } });
+  // avvisi di turno: 30 min prima dell'inizio (check-in mancante) e 2 ore dopo la fine (check-out mancante), ripetuti dopo 5 minuti
+  let pres = {};
+  const sv = Object.fromEntries((await live('c-servizi')).filter(v => v.data && Math.abs(Date.parse(v.data) - now) < 4 * DAY).map(v => [v.id, v]));
+  if (Object.keys(sv).length) {
+    pres = Object.fromEntries((await live('c-presenze')).map(p => [p.servizioId + '_' + p.utenteId, p]));
+    for (const r of await live('c-risposte')) { const v = sv[r.servizioId]; if (!v) continue; const p = pres[r.servizioId + '_' + r.utenteId], me = u => u === r.utenteId;
+      for (const n of [0, 1]) {
+        if (r.esito === 'si' && !p?.checkIn) add(iniServ(v) - 18e5 + n * 3e5, `ci:${v.id}:${r.utenteId}:${n}`, { dest: me, pl: { t: '⏱ Servizio tra 30 minuti', b: `${v.titolo}, ore ${v.oraInizio}. Quando inizia premi Turno e fai il check-in.`, go: 'turno', tg: `ci-${v.id}-${n}` } });
+        if (p?.checkIn && !p.checkOut) add(fineServ(v) + 18e5 + n * 3e5, `co:${v.id}:${r.utenteId}:${n}`, { dest: me, pl: { t: '⏹ Check-out mancante', b: `${v.titolo} è terminato. Premi Turno e fai il check-out.`, go: 'turno', tg: `co-${v.id}-${n}` } });
+      } }
+  }
+  const us = (await live('c-utenti')).filter(u => u.attivo !== false), adm = new Set(us.filter(u => u.ruolo === 'admin').map(u => u.id));
+  // chiusura automatica: 2 ore dopo la fine chi non ha fatto il check-out viene chiuso all'ora di fine evento; avviso agli amministratori
+  const chiusi = [];
+  for (const p of Object.values(pres)) { const v = sv[p.servizioId]; if (!v || !p.checkIn || p.checkOut) continue; const t = fineServ(v) + 72e5; if (t > now) fut.push(t); else chiusi.push({ p, v }) }
+  if (chiusi.length) {
+    await mutate(s, 'c-presenze', d => { let n = 0; for (const { p, v } of chiusi) { const e = d.recs[p.id]; if (!e || e.r.checkOut || !e.r.checkIn) continue; const ts = Math.max(fineServ(v), e.r.checkIn.ts); e.r = { ...e.r, checkOut: { ts, ind: '' }, ore: Math.round((ts - e.r.checkIn.ts) / 9e5) / 4, stato: 'presente', auto: true, updatedAt: now, updatedBy: 'server' }; e.s = now * 1000 + n++ } return n > 0 });
+    await s.delete('rem-next').catch(() => {});
+    const nm = id => { const u = us.find(x => x.id === id); return u ? u.cognome + ' ' + u.nome : 'Volontario' };
+    for (const { p, v } of chiusi) due.push({ k: `ac:${p.id}`, dest: u => adm.has(u), pl: { t: '⏹ Check-out chiuso in automatico', b: `${nm(p.utenteId)} non ha fatto il check-out: ${v.titolo}. Verifica o correggi l'orario.`, go: 'servizi', tg: `ac-${p.id}` } });
+  }
+  let tot = 0;
+  if (due.length && key) {
+    const all = await getPush(s); let ch = false;
+    for (const it of due) {
+      sent[it.k] = now;
+      for (const u of us) if (u.ruolo !== 'cliente' && it.dest(u.id)) for (const sub of all[u.id] || []) {
+        const st_ = await sendPush(sub, JSON.stringify(it.pl), key).catch(() => 0);
+        if (st_ === 404 || st_ === 410) { all[u.id] = all[u.id].filter(x => x.endpoint !== sub.endpoint); ch = true } else if (st_ >= 200 && st_ < 300) tot++;
+      }
+    }
+    if (ch) await setPush(s, all);
+  }
+  for (const k of Object.keys(sent)) if (now - sent[k] > 2 * DAY) delete sent[k];
+  if (due.length) await s.setJSON('rem-sent', sent);
+  await s.setJSON('rem-next', { t: Math.min(now + 10 * 6e4, fut.length ? Math.min(...fut) : Infinity) });
+  return tot;
+}
+export default async (req, ctx) => {
+  if (req.method !== 'POST') return E('Metodo non consentito', 405);
+  let b; try { b = await req.json() } catch { return E('Richiesta non valida') }
+  try {
+    const s = st(); await autoReset(s, ctx); await autoAdmin(s, ctx); await migra(s);
+    if (b?.action === 'status') return J({ setup: !(await s.get('creds', { type: 'json' })), needAdmin: !!(await s.get('needadmin', { type: 'json' })) });
+    if (!process.env.APP_SECRET || process.env.APP_SECRET.length < 16) return E('Server non configurato: imposta APP_SECRET (almeno 16 caratteri) nelle variabili d\'ambiente di Netlify', 500);
+    const t = Date.now(), fin = async res => { acc.n++; acc.ms += Date.now() - t; acc.by += lastBytes; await flush(s, Date.now()).catch(() => {}); return res };
+    if (b?.action === 'reset') {
+      const a = await auth(s, b.token); if (!a || a.user.ruolo !== 'admin') return E('Solo l\'amministratore può azzerare i dati', 403);
+      if (b.conferma !== 'AZZERA') return E('Conferma mancante');
+      const cr = (await load(s, 'creds')).recs[a.user.id], h = await pbk(String(b.password || ''), cr?.salt || '0'.repeat(32));
+      if (!okH(cr, h)) { await sleep(500); return E('Password errata', 401) }
+      await wipe(s); return J({ ok: true });
+    }
+    if (b?.action === 'adminsetup') return await fin(await adminSetup(s, b));
+    if (b?.action === 'setup') return await fin(await setup(s, b));
+    if (b?.action === 'login') return await fin(await login(s, b));
+    if (b?.action === 'pushsub') {
+      const a = await auth(s, b.token); if (!a) return E('Sessione non valida o scaduta', 401);
+      const sub = b.sub; if (!sub?.endpoint || !/^https:\/\//.test(sub.endpoint) || !sub.keys?.p256dh || !sub.keys?.auth || sub.endpoint.length > 600) return E('Sottoscrizione non valida');
+      const all = await getPush(s), l = (all[a.user.id] || []).filter(x => x.endpoint !== sub.endpoint);
+      if (!b.off) l.unshift({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } });
+      all[a.user.id] = l.slice(0, 5); await setPush(s, all); return J({ ok: true });
+    }
+    if (b?.action === 'sync') {
+      const a = await auth(s, b.token);
+      return a ? await fin(await doSync(s, a.user, a.data, b)) : E('Sessione non valida o scaduta', 401);
+    }
+    return E('Azione sconosciuta');
+  } catch (e) { console.error(e); return E('Errore del server: ' + (e.message || 'sconosciuto'), 500) }
+};

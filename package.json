@@ -1,0 +1,7 @@
+{
+  "name": "vigilanza-privata",
+  "version": "1.4.0",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@netlify/blobs": "latest" }
+}
