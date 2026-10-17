@@ -1,5 +1,5 @@
 /* Vigilanza Privata: service worker (funzionamento offline) */
-const V = 'vp-1.4.0', CORE = ['./', 'index.html', 'manifest.json', 'favicon-64.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'];
+const V = 'vp-1.4.1', CORE = ['./', 'index.html', 'manifest.json', 'favicon-64.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(V).then(c => Promise.all(CORE.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
 });

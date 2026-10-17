@@ -4,7 +4,7 @@
 import { getStore } from '@netlify/blobs';
 import crypto from 'node:crypto';
 
-const COLS = ['utenti', 'servizi', 'risposte', 'presenze', 'promemoria', 'log', 'impostazioni', 'chat', 'richieste', 'gps', 'posizioni'];
+const COLS = ['utenti', 'servizi', 'risposte', 'presenze', 'promemoria', 'log', 'impostazioni', 'chat', 'privacy', 'richieste', 'gps', 'posizioni'];
 const RUOLI = ['admin', 'tecnico', 'lettura', 'cliente'];
 const RET = 180, DAY = 864e5, OVR = 1e7, PAGE = 3.5e6, MAX_REC = 6e5, MAX_FIRMA = 4e5, TOKEN_GG = 30;
 // "seq" = millisecondi*1000 + contatore: unico per record, ordina le modifiche e permette la paginazione
@@ -68,6 +68,9 @@ async function auth(s, token) {
 // Servizi passati: si bloccano 6 ore dopo la fine. Il blocco vale per tutti; l'amministratore può solo cestinare/ripristinare (campi di servizio)
 const PCH_GG = 7, dests = p => p.dest === 'tutti' ? 'tutti' : Array.isArray(p.dest) ? p.dest : [p.dest], inDest = (p, id) => { const d = dests(p); return d === 'tutti' || d.includes(id) };
 const LOCK_H = 6, META = ['deleted', 'delAt', 'delCasc', 'escluso', 'updatedAt', 'updatedBy'];
+const PRIV_GG = 365, privOk = (p, now) => !!p && !p.rev && p.scad > now; // conferma privacy: vale 365 giorni, finché nessuno toglie la spunta
+// assegnazione alle squadre: un volontario è assegnato al servizio sv se ha dato disponibilità a un servizio del gruppo e l'amministratore l'ha comunicata (asC). Servizi senza gruppo (vecchi): basta la disponibilità
+const assegn = (ctx, sv, uid) => !sv.gr ? ctx.ris[sv.id + '_' + uid]?.r?.esito === 'si' : Object.values(ctx.srv).some(e => e.r.gr === sv.gr && ctx.ris[e.r.id + '_' + uid]?.r?.esito === 'si' && ctx.ris[e.r.id + '_' + uid].r.asC === sv.id);
 const lockedSv = (sv, now) => !!sv && !sv.deleted && now > fineServ(sv) + LOCK_H * 36e5;
 const onlyMeta = (p, r) => !!p && [...new Set([...Object.keys(p), ...Object.keys(r)])].every(k => META.includes(k) || (k === 'firma' && p.firma === '@' && r.firma) || JSON.stringify(p[k]) === JSON.stringify(r[k]));
 function clean(user, col, raw, prev, data, now, ctx) {
@@ -129,7 +132,7 @@ function clean(user, col, raw, prev, data, now, ctx) {
     const sv = ctx?.srv[rec.servizioId]?.r, tx = String(rec.testo || '').trim().slice(0, 500);
     if (!ctx || ctx.cfg?.chat === false || !sv || sv.deleted || !tx || user.ruolo === 'lettura' || prev && prev.utenteId !== own && !ad) return null;
     if (user.ruolo === 'cliente') { if (sv.clienteId !== own || now > fineServ(sv) + LOCK_H * 36e5 || !Object.values(ctx.pres).some(e => e.r.servizioId === rec.servizioId && e.r.checkIn)) return null }
-    else if (!ad && ctx.ris[rec.servizioId + '_' + own]?.r?.esito !== 'si') return null;
+    else if (!ad && !assegn(ctx, sv, own)) return null;
     if (now > fineServ(sv) + 48 * 36e5) return null;
     const ts = Number(rec.ts); return { rec: { id: rec.id, servizioId: rec.servizioId, utenteId: own, nome: `${user.nome} ${user.cognome}`, testo: tx, ts: ts > 0 && ts < now + 6e5 ? ts : now, updatedAt: rec.updatedAt, updatedBy: own } };
   }
@@ -137,9 +140,21 @@ function clean(user, col, raw, prev, data, now, ctx) {
     if (!ad) {
       if (user.ruolo !== 'tecnico' || rec.utenteId !== own || rec.id !== rec.servizioId + '_' + own) return null;
       if (col === 'presenze' && prev?.verificatoDa) return null; // presenza già confermata dal coordinatore
+      if (col === 'risposte' && prev?.asC !== undefined) return null; // squadre già comunicate: la risposta non si cambia più
+      if (col === 'presenze' && rec.checkIn && !prev?.checkIn) { const sv = ctx?.srv[rec.servizioId]?.r; if (sv?.gr && !assegn(ctx, sv, own)) return null } // check-in solo per chi è stato assegnato
       delete rec.verificatoDa; delete rec.noteCoord;
+      if (col === 'risposte') { delete rec.as; delete rec.asC; if (prev) { if (prev.as !== undefined) rec.as = prev.as } } // l'assegnazione la decide solo l'amministratore
     } else if (typeof rec.servizioId !== 'string' || typeof rec.utenteId !== 'string') return null;
     return { rec };
+  }
+  if (col === 'privacy') { // conferma privacy: la data e la scadenza le fissa il server; il volontario conferma o toglie la spunta, l'amministratore può solo toglierla
+    if (!ctx?.ut[rec.id] || ctx.ut[rec.id].r.deleted || ctx.ut[rec.id].r.ruolo === 'admin' || !ad && rec.id !== own) return null;
+    const base = { id: rec.id, utenteId: rec.id, updatedAt: rec.updatedAt, updatedBy: own };
+    if (rec.rev) return prev && !prev.rev ? { rec: { ...prev, ...base, rev: now, revBy: own } } : null;
+    if (ad) return null;
+    const fo = ctx.cfg?.privFirma !== false, f = typeof rec.firma === 'string' && rec.firma.startsWith('data:image/') ? rec.firma : '';
+    if (fo && !f) return null;
+    return { rec: { ...base, ts: now, scad: now + PRIV_GG * DAY, ver: String(rec.ver || '').slice(0, 20), ...(f ? { firma: f } : {}) } };
   }
   if (col === 'promemoria') { rec.quando = Number(rec.quando) || Date.parse(String(rec.scadenza) + ':00Z') - 2 * 36e5; if (Array.isArray(rec.dest)) rec.dest = rec.dest.filter(x => typeof x === 'string').slice(0, 500) }
   return ad ? { rec } : null; // servizi, promemoria, impostazioni: solo amministratore
@@ -164,7 +179,10 @@ function view(user, col, r, okS, cli) {
   if (col === 'chat') return user.ruolo === 'tecnico' && !r.cl && okS?.has(r.servizioId) ? r : null;
   const tec = user.ruolo === 'tecnico';
   if (col === 'utenti') { if (r.id === user.id) return r; if (tec) return null; const { cell, email, ...x } = r; return x }
-  if (col === 'risposte' || col === 'presenze') return tec && r.utenteId !== user.id ? null : r;
+  if (col === 'privacy') return r.id === user.id ? r : null;
+  if (col === 'servizi') { const { posti, ...x } = r; return x } // i volontari non sanno quanti volontari servono
+  if (col === 'risposte') { if (tec && r.utenteId !== user.id) return null; const { as, ...x } = r; return x } // la bozza di assegnazione è solo dell'amministratore
+  if (col === 'presenze') return tec && r.utenteId !== user.id ? null : r;
   if (col === 'log') return r.utenteId === user.id ? r : null;
   if (col === 'promemoria') return inDest(r, user.id) ? r : null;
   if (col === 'impostazioni') { const { pinHash, pinSalt, ...x } = r; return x }
@@ -222,6 +240,7 @@ async function getUsage(s) {
 /* ---------- Conservazione: firme e posizioni GPS si cancellano dopo RET giorni (presenze e ore restano) ---------- */
 const GPS = ['lat', 'lng', 'acc', 'ind'], hasDati = r => r.firma || [r.checkIn, r.checkOut].some(c => c && GPS.some(k => k in c));
 function strip(r, t0) { delete r.firma; for (const c of [r.checkIn, r.checkOut]) if (c) for (const k of GPS) delete c[k]; r.datiRimossi = t0 }
+const fk = (col, id) => col === 'privacy' ? 'pv-' + id : id; // chiave del blob della firma
 let lastPurge = 0;
 async function purge(s, t0, nextS) {
   if (t0 - lastPurge < 36e5) return 0; lastPurge = t0;
@@ -241,6 +260,7 @@ async function purge(s, t0, nextS) {
   await mutate(s, 'c-utenti', d => { let n = 0; for (const e of Object.values(d.recs)) { const r = e.r; if (!gone(r)) continue; dead.push(r.id);
     e.r = { id: r.id, nome: r.nome, cognome: r.cognome, username: 'eliminato-' + r.id.slice(-6), ruolo: r.ruolo === 'admin' ? 'tecnico' : r.ruolo, attivo: false, deleted: true, purged: true, delMode: r.delMode, delAt: r.delAt, creato: r.creato, updatedAt: t0, updatedBy: 'server' }; e.s = nextS(); n++ } return n > 0 }).catch(() => {});
   if (dead.length) await mutate(s, 'creds', d => { for (const id of dead) delete d.recs[id]; return true }).catch(() => {});
+  if (dead.length) { await mutate(s, 'c-privacy', d => { let n = 0; for (const id of dead) if (d.recs[id]) { delete d.recs[id]; n++ } return n > 0 }).catch(() => {}); for (const id of dead) await s.delete('f-pv-' + id).catch(() => {}) }
   for (const [col, keep] of [['servizi', ['id', 'data', 'oraInizio', 'oraFine', 'titolo']], ['promemoria', ['id', 'titolo', 'scadenza']], ['risposte', ['id', 'servizioId', 'utenteId', 'esito', 'ts']]])
     await mutate(s, 'c-' + col, d => { let n = 0; for (const e of Object.values(d.recs)) { const r = e.r; if (!gone(r)) continue; e.r = Object.fromEntries([...keep.filter(k => k in r).map(k => [k, r[k]]), ['deleted', true], ['purged', true], ['delAt', r.delAt], ['updatedAt', t0], ['updatedBy', 'server']]); e.s = nextS(); n++ } return n > 0 }).catch(() => {});
   const pr = (await load(s, 'c-promemoria')).recs;
@@ -262,7 +282,7 @@ async function equipaggio(s, cli, t0) {
     if (Math.abs(Date.parse(v.data) - t0) > 60 * DAY) continue;
     const crew = []; if (t0 < fineServ(v) + LOCK_H * 36e5) for (const p of pres) { if (p.servizioId !== v.id || !p.checkIn || p.deleted) continue; const u = us[p.utenteId]?.r; if (!u || u.deleted) continue; const ps = pos[v.id + '_' + u.id]?.r;
       crew.push({ id: u.id, nome: u.nome, cognome: u.cognome, cell: u.cell || '', ci: p.checkIn.ts, co: p.checkOut?.ts || null, pos: !p.checkOut && u.gpsCliente === true && ps && t0 - ps.ts < 18e5 ? { lat: ps.lat, lng: ps.lng, ts: ps.ts } : null, cons: u.gpsCliente === true }) }
-    out.push({ id: 'eq_' + v.id, servizioId: v.id, disp: ris.filter(r => r.servizioId === v.id && r.esito === 'si' && !r.deleted).length, crew, updatedAt: t0, updatedBy: 'server' });
+    out.push({ id: 'eq_' + v.id, servizioId: v.id, disp: ris.filter(r => !r.deleted && r.esito === 'si' && (v.gr ? r.asC === v.id : r.servizioId === v.id)).length, crew, updatedAt: t0, updatedBy: 'server' });
   }
   return out;
 }
@@ -271,8 +291,31 @@ async function pushTo(s, ids, pl) {
   for (const id of ids) for (const sub of all[id] || []) { const c = await sendPush(sub, JSON.stringify(pl), key).catch(() => 0); if (c === 404 || c === 410) { all[id] = all[id].filter(x => x.endpoint !== sub.endpoint); ch = true } }
   if (ch) await setPush(s, all);
 }
+const TIPO = { af: '🔴 Servizio Antincendio', ds: '🟠 Servizio Def safety' }, tp = sv => TIPO[sv?.tipo] || TIPO.af, dIt = d => String(d || '').split('-').reverse().join('/');
+// Record derivato "squadra": per ogni servizio a cui il volontario è stato assegnato, i componenti della sola sua squadra (nome e telefono). Non è un dato salvato: si ricalcola a ogni sincronizzazione
+function squadre(state, user, t0) {
+  const srv = state['c-servizi'].recs, ris = Object.values(state['c-risposte'].recs).map(e => e.r).filter(r => !r.deleted && r.esito === 'si' && typeof r.asC === 'string' && r.asC !== '-'), ut = state['c-utenti'].recs, out = [];
+  for (const sid of new Set(ris.filter(r => r.utenteId === user.id).map(r => r.asC))) {
+    const sv = srv[sid]?.r; if (!sv || sv.deleted || t0 > fineServ(sv) + LOCK_H * 36e5) continue;
+    out.push({ id: 'sq_' + sid, servizioId: sid, updatedAt: t0, m: ris.filter(r => r.asC === sid).map(r => ut[r.utenteId]?.r).filter(u => u && !u.deleted && u.attivo !== false).map(u => ({ id: u.id, n: u.nome + ' ' + u.cognome, c: u.cell || '' })) });
+  }
+  return out;
+}
+// Notifiche push per squadre, nuovi servizi e privacy
+async function avvisi(s, state, evs) {
+  if (!evs.length) return; const srv = state['c-servizi'].recs, us = Object.values(state['c-utenti'].recs).map(e => e.r).filter(u => !u.deleted && u.attivo !== false), adm = us.filter(u => u.ruolo === 'admin').map(u => u.id), vol = us.filter(u => u.ruolo === 'tecnico').map(u => u.id), nm = id => { const u = state['c-utenti'].recs[id]?.r; return u ? u.nome + ' ' + u.cognome : 'Volontario' };
+  const nuovi = {}; for (const e of evs) if (e.k === 'sv') (nuovi[e.rec.gr || e.rec.id] ||= []).push(e.rec);
+  for (const g of Object.values(nuovi)) { const a = g[0], tipi = g.map(x => x.tipo === 'ds' ? 'Def safety' : 'Antincendio');
+    await pushTo(s, vol, g.length > 1 ? { t: '🔴🟠 Nuovo servizio: ' + a.titolo, b: `${dIt(a.data)} ore ${a.oraInizio}, ${a.luogo}. Puoi candidarti a una sola squadra: ${tipi.join(' oppure ')}.`, go: 'servizi', tg: 'ns-' + a.id } : { t: tp(a) + ': ' + a.titolo, b: `${dIt(a.data)} ore ${a.oraInizio}, ${a.luogo}. Apri l'app e candidati.`, go: 'servizi', tg: 'ns-' + a.id }) }
+  for (const e of evs) {
+    if (e.k === 'as') { const r = e.rec, sv = srv[r.asC]?.r || srv[r.servizioId]?.r; if (!sv) continue;
+      await pushTo(s, [r.utenteId], r.asC !== '-' ? { t: tp(sv) + ': candidatura accettata', b: `${sv.titolo}, ${dIt(sv.data)} ore ${sv.oraInizio}. Apri Turno per vedere la tua squadra.`, go: 'turno', tg: 'as-' + r.id } : { t: 'Servizio: non sei stato selezionato', b: `${sv.titolo}, ${dIt(sv.data)}. Grazie per la disponibilità: questa volta non servi.`, go: 'servizi', tg: 'as-' + r.id }) }
+    if (e.k === 'pv') { const id = e.rec.id; await pushTo(s, [id], { t: '🔒 Account sospeso', b: "La spunta della privacy è stata tolta. Se è un errore apri l'app, leggi l'informativa e riconferma.", tg: 'pv-' + id });
+      await pushTo(s, adm.filter(x => x !== id), { t: '🔒 Privacy tolta: ' + nm(id), b: `${nm(id)}: tolta la spunta della privacy (${e.rec.revBy === id ? 'dal volontario' : "dall'amministratore"}). L'account è sospeso.`, go: 'volontari', tg: 'pv-' + id }) }
+  }
+}
 // Notifiche push per le azioni del cliente (richiesta evento, verifica GPS, messaggi)
-async function avvisi(s, user, by, state, t0) {
+async function avvisiCl(s, user, by, state, t0) {
   const us = Object.values(state['c-utenti'].recs).map(e => e.r).filter(u => !u.deleted && u.attivo !== false), adm = us.filter(u => u.ruolo === 'admin').map(u => u.id), nm = `${user.nome} ${user.cognome}`;
   if (user.ruolo === 'cliente') {
     if (by.richieste?.some(r => r.stato !== 'annullata')) await pushTo(s, adm, { t: '➕ Richiesta di nuovo evento', b: `${nm}: ${String(by.richieste[0].titolo || '').slice(0, 80)}`, go: 'richieste', tg: 'rq-' + by.richieste[0].id });
@@ -288,8 +331,11 @@ async function avvisi(s, user, by, state, t0) {
 async function doSync(s, user, udata, b) {
   const t0 = Date.now(), since = Number(b.since) || 0, by = {};
   for (const c of Array.isArray(b.changes) ? b.changes : []) if (c && COLS.includes(c.col) && c.rec) (by[c.col] ||= []).push(c.rec);
-  const state = { 'c-utenti': udata }, rej = [], extra = [], firme = [], cred = [];
-  const ctx = by.chat?.length || by.risposte?.length || by.presenze?.length || by.servizi?.length || by.gps?.length || by.posizioni?.length ? { srv: (await load(s, 'c-servizi')).recs, ris: (await load(s, 'c-risposte')).recs, cfg: (await load(s, 'c-impostazioni')).recs.cfg?.r, prom: by.chat?.length ? (await load(s, 'c-promemoria')).recs : {}, pres: by.gps?.length || by.posizioni?.length || user.ruolo === 'cliente' && by.chat?.length ? (await load(s, 'c-presenze')).recs : {} } : null;
+  const state = { 'c-utenti': udata }, rej = [], extra = [], firme = [], cred = [], evs = [];
+  // senza una conferma privacy valida (mai data, scaduta o tolta) l'account è sospeso: si possono solo leggere/scrivere i dati della privacy
+  let gate = user.ruolo !== 'admin' && user.ruolo !== 'cliente' && !privOk((state['c-privacy'] = await load(s, 'c-privacy')).recs[user.id]?.r, t0);
+  if (gate) for (const k of Object.keys(by)) if (k !== 'privacy' && k !== 'log') delete by[k];
+  const ctx = by.chat?.length || by.risposte?.length || by.presenze?.length || by.servizi?.length || by.privacy?.length || by.gps?.length || by.posizioni?.length ? { ut: state['c-utenti'].recs, srv: (await load(s, 'c-servizi')).recs, ris: (await load(s, 'c-risposte')).recs, cfg: (await load(s, 'c-impostazioni')).recs.cfg?.r, prom: by.chat?.length ? (await load(s, 'c-promemoria')).recs : {}, pres: by.gps?.length || by.posizioni?.length || user.ruolo === 'cliente' && by.chat?.length ? (await load(s, 'c-presenze')).recs : {} } : null;
   let ctr = 0; const nextS = () => t0 * 1000 + ctr++;
   const note = (azione, esito) => { if (extra.length < 30) extra.push({ id: 'sv_' + crypto.randomBytes(6).toString('hex'), ts: t0, utenteId: user.id, tipo: 'sync', azione, esito, updatedAt: t0, updatedBy: 'server' }) };
 
@@ -297,9 +343,9 @@ async function doSync(s, user, udata, b) {
   const noFirma = by.presenze?.length ? (await load(s, 'c-impostazioni')).recs.cfg?.r?.firma === false : false;
   for (const col of COLS) {
     const items = by[col]; if (col === 'log' || !items?.length) continue;
-    let acc, den, rj, fm, cu;
+    let acc, den, rj, fm, cu, ev;
     state['c-' + col] = await mutate(s, 'c-' + col, d => {
-      acc = 0; den = []; rj = []; fm = []; cu = [];
+      acc = 0; den = []; rj = []; fm = []; cu = []; ev = [];
       for (const raw of items) {
         const prev = d.recs[raw?.id]?.r, c = clean(user, col, raw, prev, d, t0, ctx);
         if (!c) { den.push(raw?.id); continue }
@@ -307,22 +353,27 @@ async function doSync(s, user, udata, b) {
         if (col === 'presenze' && noFirma && typeof rec.firma === 'string' && rec.firma.startsWith('data:image/')) delete rec.firma;
         if (prev && (prev.updatedAt || 0) > rec.updatedAt) { rj.push({ col, ...d.recs[rec.id] }); continue }
         if (col === 'presenze') { const t = rec.checkIn?.ts || rec.checkOut?.ts; if (t && t < t0 - RET * DAY && hasDati(rec)) strip(rec, t0) }
-        if (col === 'presenze' && typeof rec.firma === 'string' && rec.firma.startsWith('data:image/')) { // la firma sta in un blob a parte
+        if ((col === 'presenze' || col === 'privacy') && typeof rec.firma === 'string' && rec.firma.startsWith('data:image/')) { // la firma sta in un blob a parte
           if (rec.firma.length > MAX_FIRMA) { den.push(rec.id); continue }
-          fm.push([rec.id, rec.firma]); rec.firma = '@';
+          fm.push([fk(col, rec.id), rec.firma]); rec.firma = '@';
         }
+        if (col === 'risposte' && user.ruolo === 'admin' && rec.asC !== undefined && prev?.asC !== rec.asC) ev.push({ k: 'as', rec });
+        if (col === 'servizi' && !prev && !rec.deleted) ev.push({ k: 'sv', rec });
+        if (col === 'privacy' && rec.rev && !prev?.rev) ev.push({ k: 'pv', rec });
         d.recs[rec.id] = { s: nextS(), r: rec }; acc++;
         if (pw) cu.push([rec.id, pw]);
       }
       return acc > 0;
     });
-    firme.push(...fm); cred.push(...cu); rej.push(...rj);
+    firme.push(...fm); cred.push(...cu); rej.push(...rj); evs.push(...(ev || []));
     for (const id of den) note(`Operazione non consentita: ${col} ${id}`, 'negato');
     for (const r of rj) note(`Modifica scartata: ${col} ${r.r.id} (sul server c'è una versione più recente)`, 'scartata');
   }
-  if (by.promemoria?.length || by.servizi?.length || by.risposte?.length || by.presenze?.length) await s.delete('rem-next').catch(() => {});
+  if (by.promemoria?.length || by.servizi?.length || by.risposte?.length || by.presenze?.length || by.privacy?.length) await s.delete('rem-next').catch(() => {});
   if (cred.length) await mutate(s, 'creds', d => { for (const [id, p] of cred) d.recs[id] = stPw(p); return true });
   for (const [id, f] of firme) await s.set('f-' + id, sealS('f-' + id, f));
+  if (gate) gate = !privOk(state['c-privacy'].recs[user.id]?.r, t0);
+  await avvisi(s, state, evs).catch(() => {});
   const nrm = await purge(s, t0, nextS).catch(() => 0); if (nrm) delete state['c-presenze']; if (nrm) note(`Conservazione ${RET} giorni: rimosse firme e posizioni da ${nrm} presenze`, 'ok');
   const groups = {}, add = r => (groups[mKey(r.ts)] ||= []).push(r);
   for (const raw of by.log || []) { const c = clean(user, 'log', raw, null, null, t0); if (c) add(c.rec) }
@@ -334,7 +385,7 @@ async function doSync(s, user, udata, b) {
   const put = (col, e) => { const k = col + '|' + e.r.id; if (!cand.has(k)) cand.set(k, { col, s: e.s, r: e.r }) };
   for (const col of COLS) {
     if (col === 'log') continue;
-    const d = state['c-' + col] ?? await load(s, 'c-' + col);
+    const d = (state['c-' + col] ??= await load(s, 'c-' + col));
     for (const e of Object.values(d.recs)) if (e.s > min) put(col, e);
   }
   const ms0 = since === 0 ? t0 - 180 * DAY : Math.max(min / 1000, t0 - 180 * DAY);
@@ -345,21 +396,23 @@ async function doSync(s, user, udata, b) {
   rej.forEach(e => put(e.col, e));
   let okS = null, cli = null;
   if (user.ruolo === 'tecnico' && [...cand.values()].some(c => c.col === 'chat' || c.col === 'gps')) {
-    okS = new Set(Object.values((await load(s, 'c-risposte')).recs).filter(e => e.r.utenteId === user.id && e.r.esito === 'si' && !e.r.deleted).map(e => e.r.servizioId));
+    okS = new Set(); for (const e of Object.values(state['c-risposte'].recs)) { const r = e.r; if (r.utenteId !== user.id || r.esito !== 'si' || r.deleted) continue; const sv = state['c-servizi'].recs[r.servizioId]?.r; if (sv?.gr) { if (typeof r.asC === 'string' && r.asC !== '-') okS.add(r.asC) } else okS.add(r.servizioId) }
     for (const e of Object.values((await load(s, 'c-promemoria')).recs)) if (!e.r.deleted && inDest(e.r, user.id)) okS.add('p:' + e.r.id);
   }
   if (user.ruolo === 'cliente') cli = await cliCtx(s, user);
-  const list = [...cand.values()].map(c => ({ ...c, v: view(user, c.col, c.r, okS, cli) })).filter(c => c.v)
+  let list = [...cand.values()].map(c => ({ ...c, v: view(user, c.col, c.r, okS, cli) })).filter(c => c.v)
     .sort((a, b) => a.s - b.s || (a.col + a.r.id < b.col + b.r.id ? -1 : 1));
   if (cli) { let n = 0; for (const rec of await equipaggio(s, cli, t0)) list.push({ col: 'equipaggio', s: t0 * 1000 + n++, r: rec, v: rec }) }
-  await avvisi(s, user, by, state, t0).catch(() => {});
+  await avvisiCl(s, user, by, state, t0).catch(() => {});
 
+  if (gate) list = list.filter(c => ['utenti', 'impostazioni', 'privacy'].includes(c.col));
+  else if (user.ruolo === 'tecnico') { let n = 0; for (const rec of squadre(state, user, t0)) list.push({ col: 'squadra', s: t0 * 1000 + n++, r: rec, v: rec }) }
   // 3) risposta a pagine (~3,5 MB): firme reinserite solo per i record inviati
   const recs = []; let size = 0, more = false, last = 0;
   for (let i = 0; i < list.length && !more; i += 8) {
     const ch = list.slice(i, i + 8);
     await Promise.all(ch.map(async c => {
-      if (c.col === 'presenze' && c.v.firma === '@') { const f = decS('f-' + c.r.id, await s.get('f-' + c.r.id, { type: 'text' })); c.v = { ...c.v }; if (f) c.v.firma = f; else delete c.v.firma }
+      if ((c.col === 'presenze' || c.col === 'privacy') && c.v.firma === '@') { const k = 'f-' + fk(c.col, c.r.id), f = decS(k, await s.get(k, { type: 'text' })); c.v = { ...c.v }; if (f) c.v.firma = f; else delete c.v.firma }
     }));
     for (const c of ch) {
       const n = JSON.stringify(c.v).length;
@@ -367,7 +420,7 @@ async function doSync(s, user, udata, b) {
       recs.push({ col: c.col, rec: c.v }); size += n; last = c.s;
     }
   }
-  return J({ recs, seq: more ? -last : t0 * 1000, more, ...(user.ruolo === 'admin' ? { usage: await getUsage(s) } : {}) });
+  return J({ recs, seq: gate ? since : more ? -last : t0 * 1000, more, gate, ...(user.ruolo === 'admin' ? { usage: await getUsage(s) } : {}) });
 }
 
 /* ---------- Azzeramento dati (prove): automatico a ogni deploy se RESET_ON_DEPLOY=true, oppure quando cambia RESET_KEY; manuale con l'azione reset ---------- */
@@ -455,12 +508,13 @@ export async function runPush(s = st(), now = Date.now()) {
   const sv = Object.fromEntries((await live('c-servizi')).filter(v => v.data && Math.abs(Date.parse(v.data) - now) < 4 * DAY).map(v => [v.id, v]));
   if (Object.keys(sv).length) {
     pres = Object.fromEntries((await live('c-presenze')).map(p => [p.servizioId + '_' + p.utenteId, p]));
-    for (const r of await live('c-risposte')) { const v = sv[r.servizioId]; if (!v) continue; const p = pres[r.servizioId + '_' + r.utenteId], me = u => u === r.utenteId;
+    for (const r of await live('c-risposte')) { const v = sv[r.servizioId]?.gr ? sv[r.asC] : sv[r.servizioId]; if (!v || r.esito !== 'si') continue; const p = pres[v.id + '_' + r.utenteId], me = u => u === r.utenteId; // con le squadre vale il servizio a cui sei stato assegnato
       for (const n of [0, 1]) {
-        if (r.esito === 'si' && !p?.checkIn) add(iniServ(v) - 18e5 + n * 3e5, `ci:${v.id}:${r.utenteId}:${n}`, { dest: me, pl: { t: '⏱ Servizio tra 30 minuti', b: `${v.titolo}, ore ${v.oraInizio}. Quando inizia premi Turno e fai il check-in.`, go: 'turno', tg: `ci-${v.id}-${n}` } });
+        if (!p?.checkIn) add(iniServ(v) - 18e5 + n * 3e5, `ci:${v.id}:${r.utenteId}:${n}`, { dest: me, pl: { t: '⏱ Servizio tra 30 minuti', b: `${v.titolo}, ore ${v.oraInizio}. Quando inizia premi Turno e fai il check-in.`, go: 'turno', tg: `ci-${v.id}-${n}` } });
         if (p?.checkIn && !p.checkOut) add(fineServ(v) + 18e5 + n * 3e5, `co:${v.id}:${r.utenteId}:${n}`, { dest: me, pl: { t: '⏹ Check-out mancante', b: `${v.titolo} è terminato. Premi Turno e fai il check-out.`, go: 'turno', tg: `co-${v.id}-${n}` } });
       } }
   }
+  for (const pv of await live('c-privacy')) if (!pv.rev && pv.scad) for (const k of [15, 1]) add(pv.scad - k * DAY, `pv:${pv.id}:${pv.scad}:${k}`, { dest: u => u === pv.id, pl: { t: '🔒 Privacy in scadenza', b: `La tua conferma della privacy scade il ${dIt(new Date(pv.scad + 36e5).toISOString().slice(0, 10))}. Apri l'app e riconfermala.`, go: 'altro', tg: `pv-${pv.id}-${k}` } });
   const us = (await live('c-utenti')).filter(u => u.attivo !== false), adm = new Set(us.filter(u => u.ruolo === 'admin').map(u => u.id));
   // chiusura automatica: 2 ore dopo la fine chi non ha fatto il check-out viene chiuso all'ora di fine evento; avviso agli amministratori
   const chiusi = [];
