@@ -4,8 +4,8 @@
 import { getStore } from '@netlify/blobs';
 import crypto from 'node:crypto';
 
-const COLS = ['utenti', 'servizi', 'risposte', 'presenze', 'promemoria', 'log', 'impostazioni', 'chat', 'privacy', 'richieste', 'gps', 'posizioni'];
-const RUOLI = ['admin', 'tecnico', 'lettura', 'cliente'];
+const COLS = ['utenti', 'servizi', 'risposte', 'presenze', 'promemoria', 'log', 'impostazioni', 'chat', 'privacy'];
+const RUOLI = ['admin', 'tecnico', 'lettura'];
 const RET = 180, DAY = 864e5, OVR = 1e7, PAGE = 3.5e6, MAX_REC = 6e5, MAX_FIRMA = 4e5, TOKEN_GG = 30;
 // "seq" = millisecondi*1000 + contatore: unico per record, ordina le modifiche e permette la paginazione
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -104,35 +104,10 @@ function clean(user, col, raw, prev, data, now, ctx) {
     if (now > (pm.quando || 0) + PCH_GG * DAY) return null;
     const ts = Number(rec.ts); return { rec: { id: rec.id, promId: rec.promId, a, utenteId: own, nome: `${user.nome} ${user.cognome}`, testo: tx, ts: ts > 0 && ts < now + 6e5 ? ts : now, updatedAt: rec.updatedAt, updatedBy: own } };
   }
-  if (col === 'chat' && rec.cl !== undefined && !rec.promId && !rec.servizioId) { // chat cliente-amministratore: sempre attiva
-    const tx = String(rec.testo || '').trim().slice(0, 500), cl = ad ? String(rec.cl) : own;
-    if (!tx || !ad && user.ruolo !== 'cliente' || prev && prev.utenteId !== own && !ad) return null;
-    const ts = Number(rec.ts); return { rec: { id: rec.id, cl, a: ad ? cl : 'gestore', utenteId: own, nome: `${user.nome} ${user.cognome}`, testo: tx, ts: ts > 0 && ts < now + 6e5 ? ts : now, updatedAt: rec.updatedAt, updatedBy: own } };
-  }
-  if (col === 'richieste') { // richieste di nuovo evento: il cliente crea o annulla la propria, l'amministratore le gestisce
-    if (ad) return { rec };
-    if (user.ruolo !== 'cliente') return null;
-    if (prev) return prev.clienteId === own && prev.stato === 'attesa' && rec.stato === 'annullata' ? { rec: { ...prev, stato: 'annullata', updatedAt: rec.updatedAt, updatedBy: own } } : null;
-    const t = (v, n) => String(v ?? '').trim().slice(0, n), o = { id: rec.id, clienteId: own, titolo: t(rec.titolo, 120), luogo: t(rec.luogo, 160), data: t(rec.data, 10), oraInizio: t(rec.oraInizio, 5), oraFine: t(rec.oraFine, 5), posti: Math.max(1, Math.min(200, Number(rec.posti) || 1)), note: t(rec.note, 500), stato: 'attesa', creata: now, updatedAt: rec.updatedAt, updatedBy: own };
-    return o.titolo && o.luogo && /^\d{4}-\d\d-\d\d$/.test(o.data) && /^\d\d:\d\d$/.test(o.oraInizio) && /^\d\d:\d\d$/.test(o.oraFine) ? { rec: o } : null;
-  }
-  if (col === 'gps') { // richiesta di verifica posizione: solo cliente del servizio (o amministratore) e solo se qualcuno è in turno; una ogni 90 secondi
-    const sid = String(rec.servizioId || ''), sv = ctx?.srv[sid]?.r;
-    if (prev || !sv || sv.deleted || !ad && (user.ruolo !== 'cliente' || sv.clienteId !== own)) return null;
-    if (!Object.values(ctx.pres).some(e => e.r.servizioId === sid && e.r.checkIn && !e.r.checkOut)) return null;
-    if (Object.values(data.recs).some(e => e.r.servizioId === sid && e.r.ts > now - 9e4)) return null;
-    return { rec: { id: rec.id, servizioId: sid, clienteId: sv.clienteId || '', ts: now, updatedAt: rec.updatedAt, updatedBy: own } };
-  }
-  if (col === 'posizioni') { // posizione condivisa dal volontario: solo con consenso attivo e solo tra check-in e check-out
-    const sid = String(rec.servizioId || ''), p = ctx?.pres[sid + '_' + own]?.r, la = Number(rec.lat), lo = Number(rec.lng);
-    if (user.ruolo !== 'tecnico' || rec.id !== sid + '_' + own || user.gpsCliente !== true || !p?.checkIn || p.checkOut || !(Math.abs(la) <= 90) || !(Math.abs(lo) <= 180)) return null;
-    return { rec: { id: rec.id, servizioId: sid, utenteId: own, lat: la, lng: lo, acc: Number(rec.acc) > 0 ? Math.round(Number(rec.acc)) : null, ts: now, updatedAt: rec.updatedAt, updatedBy: own } };
-  }
-  if (col === 'chat') { // solo l'amministratore e chi ha accettato il servizio (o il cliente dopo il primo check-in); chat attiva e non scaduta (48 h dopo la fine)
+  if (col === 'chat') { // solo l'amministratore e chi ha accettato il servizio; chat attiva e non scaduta (48 h dopo la fine)
     const sv = ctx?.srv[rec.servizioId]?.r, tx = String(rec.testo || '').trim().slice(0, 500);
     if (!ctx || ctx.cfg?.chat === false || !sv || sv.deleted || !tx || user.ruolo === 'lettura' || prev && prev.utenteId !== own && !ad) return null;
-    if (user.ruolo === 'cliente') { if (sv.clienteId !== own || now > fineServ(sv) + LOCK_H * 36e5 || !Object.values(ctx.pres).some(e => e.r.servizioId === rec.servizioId && e.r.checkIn)) return null }
-    else if (!ad && !assegn(ctx, sv, own)) return null;
+    if (!ad && !assegn(ctx, sv, own)) return null;
     if (now > fineServ(sv) + 48 * 36e5) return null;
     const ts = Number(rec.ts); return { rec: { id: rec.id, servizioId: rec.servizioId, utenteId: own, nome: `${user.nome} ${user.cognome}`, testo: tx, ts: ts > 0 && ts < now + 6e5 ? ts : now, updatedAt: rec.updatedAt, updatedBy: own } };
   }
@@ -161,22 +136,10 @@ function clean(user, col, raw, prev, data, now, ctx) {
 }
 // Cosa può vedere ciascun ruolo
 const fineServ = sv => { const t = Date.parse(sv.data + 'T' + (sv.oraFine || '23:59') + ':00Z') - 2 * 36e5; return sv.oraFine < sv.oraInizio ? t + DAY : t }; // fuso Italia approssimato (UTC+2)
-function view(user, col, r, okS, cli) {
-  if (col === 'posizioni') return r.utenteId === user.id ? r : null; // le coordinate non viaggiano mai verso gli altri dispositivi
+function view(user, col, r, okS) {
   if (user.ruolo === 'admin') return r;
-  if (user.ruolo === 'cliente') { // il cliente vede solo i propri eventi e le proprie chat; i volontari arrivano nel record derivato "equipaggio"
-    if (col === 'utenti') return r.id === user.id ? r : null;
-    if (col === 'servizi') return r.clienteId === user.id ? r : null;
-    if (col === 'richieste') return r.clienteId === user.id ? r : null;
-    if (col === 'chat') return r.cl === user.id || r.servizioId && cli?.sv.has(r.servizioId) && r.ts >= (cli.fci.get(r.servizioId) ?? Infinity) ? r : null;
-    if (col === 'log') return r.utenteId === user.id ? r : null;
-    if (col === 'impostazioni') { const { pinHash, pinSalt, ...x } = r; return x }
-    return null;
-  }
-  if (col === 'richieste') return null;
-  if (col === 'gps') return user.ruolo === 'tecnico' && okS?.has(r.servizioId) ? r : null;
   if (col === 'chat' && r.promId) return user.ruolo !== 'lettura' && (r.utenteId === user.id || okS?.has('p:' + r.promId) && (r.a === 'tutti' || r.a === user.id)) ? r : null;
-  if (col === 'chat') return user.ruolo === 'tecnico' && !r.cl && okS?.has(r.servizioId) ? r : null;
+  if (col === 'chat') return user.ruolo === 'tecnico' && okS?.has(r.servizioId) ? r : null;
   const tec = user.ruolo === 'tecnico';
   if (col === 'utenti') { if (r.id === user.id) return r; if (tec) return null; const { cell, email, ...x } = r; return x }
   if (col === 'privacy') return r.id === user.id ? r : null;
@@ -264,28 +227,10 @@ async function purge(s, t0, nextS) {
   for (const [col, keep] of [['servizi', ['id', 'data', 'oraInizio', 'oraFine', 'titolo']], ['promemoria', ['id', 'titolo', 'scadenza']], ['risposte', ['id', 'servizioId', 'utenteId', 'esito', 'ts']]])
     await mutate(s, 'c-' + col, d => { let n = 0; for (const e of Object.values(d.recs)) { const r = e.r; if (!gone(r)) continue; e.r = Object.fromEntries([...keep.filter(k => k in r).map(k => [k, r[k]]), ['deleted', true], ['purged', true], ['delAt', r.delAt], ['updatedAt', t0], ['updatedBy', 'server']]); e.s = nextS(); n++ } return n > 0 }).catch(() => {});
   const pr = (await load(s, 'c-promemoria')).recs;
-  await mutate(s, 'c-chat', d => { let n = 0; for (const [k, e] of Object.entries(d.recs)) { const v = sv[e.r.servizioId]?.r, pm = pr[e.r.promId]?.r; if (e.r.cl !== undefined ? t0 > (e.r.ts || 0) + 90 * DAY : e.r.promId ? !pm || pm.deleted || t0 > (pm.quando || 0) + PCH_GG * DAY : !v || v.deleted || t0 > fineServ(v) + 48 * 36e5) { delete d.recs[k]; n++ } } return n > 0 }).catch(() => {}); // la chat si azzera 48 h dopo la fine dell'evento
-  for (const col of ['posizioni', 'gps']) await mutate(s, 'c-' + col, d => { let n = 0; for (const [k, e] of Object.entries(d.recs)) { const v = sv[e.r.servizioId]?.r; if (!v || v.deleted || t0 > fineServ(v) + 3 * 36e5) { delete d.recs[k]; n++ } } return n > 0 }).catch(() => {}); // le coordinate restano solo il tempo del servizio
+  await mutate(s, 'c-chat', d => { let n = 0; for (const [k, e] of Object.entries(d.recs)) { const v = sv[e.r.servizioId]?.r, pm = pr[e.r.promId]?.r; if (e.r.promId ? !pm || pm.deleted || t0 > (pm.quando || 0) + PCH_GG * DAY : !v || v.deleted || t0 > fineServ(v) + 48 * 36e5) { delete d.recs[k]; n++ } } return n > 0 }).catch(() => {}); // la chat si azzera 48 h dopo la fine dell'evento
   return tot;
 }
 
-// Contesto del cliente: i suoi eventi e il momento del primo check-in di ciascuno (la chat con i volontari si apre da lì)
-async function cliCtx(s, user) {
-  const sv = Object.values((await load(s, 'c-servizi')).recs).map(e => e.r).filter(r => r.clienteId === user.id && !r.deleted), fci = new Map();
-  for (const e of Object.values((await load(s, 'c-presenze')).recs)) if (e.r.checkIn && sv.some(v => v.id === e.r.servizioId)) fci.set(e.r.servizioId, Math.min(fci.get(e.r.servizioId) ?? Infinity, e.r.checkIn.ts));
-  return { sv: new Set(sv.map(v => v.id)), svr: Object.fromEntries(sv.map(v => [v.id, v])), fci };
-}
-// Record derivato "equipaggio": quanti volontari sono disponibili e, da quando hanno fatto il check-in, chi è in servizio (nome, telefono e, se consentito, ultima posizione)
-async function equipaggio(s, cli, t0) {
-  const ris = Object.values((await load(s, 'c-risposte')).recs).map(e => e.r), pres = Object.values((await load(s, 'c-presenze')).recs).map(e => e.r), us = (await load(s, 'c-utenti')).recs, pos = (await load(s, 'c-posizioni')).recs, out = [];
-  for (const v of Object.values(cli.svr)) {
-    if (Math.abs(Date.parse(v.data) - t0) > 60 * DAY) continue;
-    const crew = []; if (t0 < fineServ(v) + LOCK_H * 36e5) for (const p of pres) { if (p.servizioId !== v.id || !p.checkIn || p.deleted) continue; const u = us[p.utenteId]?.r; if (!u || u.deleted) continue; const ps = pos[v.id + '_' + u.id]?.r;
-      crew.push({ id: u.id, nome: u.nome, cognome: u.cognome, cell: u.cell || '', ci: p.checkIn.ts, co: p.checkOut?.ts || null, pos: !p.checkOut && u.gpsCliente === true && ps && t0 - ps.ts < 18e5 ? { lat: ps.lat, lng: ps.lng, ts: ps.ts } : null, cons: u.gpsCliente === true }) }
-    out.push({ id: 'eq_' + v.id, servizioId: v.id, disp: ris.filter(r => !r.deleted && r.esito === 'si' && (v.gr ? r.asC === v.id : r.servizioId === v.id)).length, crew, updatedAt: t0, updatedBy: 'server' });
-  }
-  return out;
-}
 async function pushTo(s, ids, pl) {
   const key = vapidKey(); if (!key || !ids.length) return; const all = await getPush(s); let ch = false;
   for (const id of ids) for (const sub of all[id] || []) { const c = await sendPush(sub, JSON.stringify(pl), key).catch(() => 0); if (c === 404 || c === 410) { all[id] = all[id].filter(x => x.endpoint !== sub.endpoint); ch = true } }
@@ -314,28 +259,14 @@ async function avvisi(s, state, evs) {
       await pushTo(s, adm.filter(x => x !== id), { t: '🔒 Privacy tolta: ' + nm(id), b: `${nm(id)}: tolta la spunta della privacy (${e.rec.revBy === id ? 'dal volontario' : "dall'amministratore"}). L'account è sospeso.`, go: 'volontari', tg: 'pv-' + id }) }
   }
 }
-// Notifiche push per le azioni del cliente (richiesta evento, verifica GPS, messaggi)
-async function avvisiCl(s, user, by, state, t0) {
-  const us = Object.values(state['c-utenti'].recs).map(e => e.r).filter(u => !u.deleted && u.attivo !== false), adm = us.filter(u => u.ruolo === 'admin').map(u => u.id), nm = `${user.nome} ${user.cognome}`;
-  if (user.ruolo === 'cliente') {
-    if (by.richieste?.some(r => r.stato !== 'annullata')) await pushTo(s, adm, { t: '➕ Richiesta di nuovo evento', b: `${nm}: ${String(by.richieste[0].titolo || '').slice(0, 80)}`, go: 'richieste', tg: 'rq-' + by.richieste[0].id });
-    if (by.chat?.some(m => m.cl !== undefined && !m.servizioId)) await pushTo(s, adm, { t: '💬 Messaggio da ' + nm, b: String(by.chat[0].testo || '').slice(0, 100), go: 'richieste', tg: 'cc-' + user.id });
-  }
-  if (user.ruolo === 'admin' && by.chat?.some(m => m.cl && !m.servizioId)) await pushTo(s, [...new Set(by.chat.filter(m => m.cl).map(m => String(m.cl)))], { t: '💬 Messaggio dal gestore', b: String(by.chat.find(m => m.cl).testo || '').slice(0, 100), go: 'richieste', tg: 'cg' });
-  if (by.gps?.length && (user.ruolo === 'cliente' || user.ruolo === 'admin')) {
-    const pres = Object.values((await load(s, 'c-presenze')).recs).map(e => e.r), sids = new Set(by.gps.map(g => g.servizioId));
-    const ids = us.filter(u => u.gpsCliente === true && pres.some(p => sids.has(p.servizioId) && p.utenteId === u.id && p.checkIn && !p.checkOut)).map(u => u.id);
-    await pushTo(s, ids, { t: '📍 Verifica della posizione', b: 'Il cliente chiede la tua posizione. Apri l\'app per condividerla.', go: 'turno', tg: 'gps' });
-  }
-}
 async function doSync(s, user, udata, b) {
   const t0 = Date.now(), since = Number(b.since) || 0, by = {};
   for (const c of Array.isArray(b.changes) ? b.changes : []) if (c && COLS.includes(c.col) && c.rec) (by[c.col] ||= []).push(c.rec);
   const state = { 'c-utenti': udata }, rej = [], extra = [], firme = [], cred = [], evs = [];
   // senza una conferma privacy valida (mai data, scaduta o tolta) l'account è sospeso: si possono solo leggere/scrivere i dati della privacy
-  let gate = user.ruolo !== 'admin' && user.ruolo !== 'cliente' && !privOk((state['c-privacy'] = await load(s, 'c-privacy')).recs[user.id]?.r, t0);
+  let gate = user.ruolo !== 'admin' && !privOk((state['c-privacy'] = await load(s, 'c-privacy')).recs[user.id]?.r, t0);
   if (gate) for (const k of Object.keys(by)) if (k !== 'privacy' && k !== 'log') delete by[k];
-  const ctx = by.chat?.length || by.risposte?.length || by.presenze?.length || by.servizi?.length || by.privacy?.length || by.gps?.length || by.posizioni?.length ? { ut: state['c-utenti'].recs, srv: (await load(s, 'c-servizi')).recs, ris: (await load(s, 'c-risposte')).recs, cfg: (await load(s, 'c-impostazioni')).recs.cfg?.r, prom: by.chat?.length ? (await load(s, 'c-promemoria')).recs : {}, pres: by.gps?.length || by.posizioni?.length || user.ruolo === 'cliente' && by.chat?.length ? (await load(s, 'c-presenze')).recs : {} } : null;
+  const ctx = by.chat?.length || by.risposte?.length || by.presenze?.length || by.servizi?.length || by.privacy?.length ? { ut: state['c-utenti'].recs, srv: (await load(s, 'c-servizi')).recs, ris: (await load(s, 'c-risposte')).recs, cfg: (await load(s, 'c-impostazioni')).recs.cfg?.r, prom: by.chat?.length ? (await load(s, 'c-promemoria')).recs : {} } : null;
   let ctr = 0; const nextS = () => t0 * 1000 + ctr++;
   const note = (azione, esito) => { if (extra.length < 30) extra.push({ id: 'sv_' + crypto.randomBytes(6).toString('hex'), ts: t0, utenteId: user.id, tipo: 'sync', azione, esito, updatedAt: t0, updatedBy: 'server' }) };
 
@@ -394,16 +325,13 @@ async function doSync(s, user, udata, b) {
     for (const e of Object.values(d.recs)) if (e.s > min) put('log', e);
   }
   rej.forEach(e => put(e.col, e));
-  let okS = null, cli = null;
-  if (user.ruolo === 'tecnico' && [...cand.values()].some(c => c.col === 'chat' || c.col === 'gps')) {
+  let okS = null;
+  if (user.ruolo === 'tecnico' && [...cand.values()].some(c => c.col === 'chat')) {
     okS = new Set(); for (const e of Object.values(state['c-risposte'].recs)) { const r = e.r; if (r.utenteId !== user.id || r.esito !== 'si' || r.deleted) continue; const sv = state['c-servizi'].recs[r.servizioId]?.r; if (sv?.gr) { if (typeof r.asC === 'string' && r.asC !== '-') okS.add(r.asC) } else okS.add(r.servizioId) }
     for (const e of Object.values((await load(s, 'c-promemoria')).recs)) if (!e.r.deleted && inDest(e.r, user.id)) okS.add('p:' + e.r.id);
   }
-  if (user.ruolo === 'cliente') cli = await cliCtx(s, user);
-  let list = [...cand.values()].map(c => ({ ...c, v: view(user, c.col, c.r, okS, cli) })).filter(c => c.v)
+  let list = [...cand.values()].map(c => ({ ...c, v: view(user, c.col, c.r, okS) })).filter(c => c.v)
     .sort((a, b) => a.s - b.s || (a.col + a.r.id < b.col + b.r.id ? -1 : 1));
-  if (cli) { let n = 0; for (const rec of await equipaggio(s, cli, t0)) list.push({ col: 'equipaggio', s: t0 * 1000 + n++, r: rec, v: rec }) }
-  await avvisiCl(s, user, by, state, t0).catch(() => {});
 
   if (gate) list = list.filter(c => ['utenti', 'impostazioni', 'privacy'].includes(c.col));
   else if (user.ruolo === 'tecnico') { let n = 0; for (const rec of squadre(state, user, t0)) list.push({ col: 'squadra', s: t0 * 1000 + n++, r: rec, v: rec }) }
@@ -530,7 +458,7 @@ export async function runPush(s = st(), now = Date.now()) {
     const all = await getPush(s); let ch = false;
     for (const it of due) {
       sent[it.k] = now;
-      for (const u of us) if (u.ruolo !== 'cliente' && it.dest(u.id)) for (const sub of all[u.id] || []) {
+      for (const u of us) if (it.dest(u.id)) for (const sub of all[u.id] || []) {
         const st_ = await sendPush(sub, JSON.stringify(it.pl), key).catch(() => 0);
         if (st_ === 404 || st_ === 410) { all[u.id] = all[u.id].filter(x => x.endpoint !== sub.endpoint); ch = true } else if (st_ >= 200 && st_ < 300) tot++;
       }
